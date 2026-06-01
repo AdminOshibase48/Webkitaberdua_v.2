@@ -4,6 +4,7 @@
 
 // Format date to Indonesian format
 function formatDate(date, format = 'long') {
+    if (!date) return '';
     const d = new Date(date);
     const options = {
         day: 'numeric',
@@ -20,6 +21,7 @@ function formatDate(date, format = 'long') {
 
 // Format time
 function formatTime(date) {
+    if (!date) return '';
     const d = new Date(date);
     return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 }
@@ -40,13 +42,6 @@ function showToast(message, type = 'love') {
     const toast = document.createElement('div');
     toast.className = 'toast-notification';
     
-    let icon = '❤️';
-    if (type === 'love') icon = '❤️';
-    else if (type === 'chat') icon = '💬';
-    else if (type === 'poke') icon = '💗';
-    else if (type === 'success') icon = '✅';
-    else if (type === 'error') icon = '❌';
-    
     toast.innerHTML = `<i class="fas fa-heart" style="color: #FF6B9D;"></i><span>${escapeHtml(message)}</span>`;
     container.appendChild(toast);
     
@@ -55,7 +50,7 @@ function showToast(message, type = 'love') {
     setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
-    }, APP_CONFIG.toastDuration);
+    }, 3000);
 }
 
 // Create floating hearts animation
@@ -78,19 +73,9 @@ function createFloatingHearts(count = 10) {
     }
 }
 
-// Play sound effect
-function playSound(soundName) {
-    try {
-        const audio = new Audio(`assets/sounds/${soundName}.mp3`);
-        audio.volume = 0.5;
-        audio.play().catch(e => console.log('Audio play failed:', e));
-    } catch (e) {
-        console.log('Sound not available');
-    }
-}
-
 // Calculate relationship duration
 function calculateRelationshipDuration(startDate) {
+    if (!startDate) return { years: 0, months: 0, days: 0, totalDays: 0 };
     const start = new Date(startDate);
     const now = new Date();
     
@@ -116,6 +101,7 @@ function calculateRelationshipDuration(startDate) {
 
 // Format relationship duration text
 function formatRelationshipDuration(startDate) {
+    if (!startDate) return 'Just started our journey';
     const { years, months, days, totalDays } = calculateRelationshipDuration(startDate);
     
     if (years > 0) {
@@ -129,6 +115,8 @@ function formatRelationshipDuration(startDate) {
 
 // Update countdown
 function updateCountdown(targetDate, elements) {
+    if (!targetDate) return false;
+    
     const now = new Date();
     const diff = targetDate - now;
     
@@ -153,87 +141,17 @@ function updateCountdown(targetDate, elements) {
     return true;
 }
 
-// Generate random love meter value (between 90-100)
+// Get random love meter value
 function getRandomLoveMeter() {
     return Math.floor(Math.random() * 11) + 90;
 }
 
-// Get love meter message based on value
+// Get love meter message
 function getLoveMeterMessage(value) {
     if (value >= 98) return "You two are inseparable! ❤️";
     if (value >= 95) return "Perfect match! 💕";
     if (value >= 90) return "Soulmates forever! 💗";
     return "Love is growing everyday! 💖";
-}
-
-// Create a unique ID
-function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
-// Debounce function for performance
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-// Scroll to element smoothly
-function scrollToElement(elementId, offset = 80) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        const elementPosition = element.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - offset;
-        
-        window.scrollTo({
-            top: offsetPosition,
-            behavior: 'smooth'
-        });
-    }
-}
-
-// Check if element is in viewport
-function isInViewport(element) {
-    const rect = element.getBoundingClientRect();
-    return (
-        rect.top >= 0 &&
-        rect.left >= 0 &&
-        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-    );
-}
-
-// Get current date string
-function getCurrentDateString() {
-    const now = new Date();
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    return now.toLocaleDateString('id-ID', options);
-}
-
-// Set current date in welcome banner
-function setCurrentDate() {
-    const dateElement = document.getElementById('currentDate');
-    if (dateElement) {
-        dateElement.textContent = getCurrentDateString();
-    }
-}
-
-// Copy text to clipboard
-async function copyToClipboard(text) {
-    try {
-        await navigator.clipboard.writeText(text);
-        showToast('Copied to clipboard!', 'success');
-        return true;
-    } catch (err) {
-        console.error('Failed to copy:', err);
-        return false;
-    }
 }
 
 // Get random love quote
@@ -251,20 +169,9 @@ function getRandomLoveQuote() {
     return quotes[Math.floor(Math.random() * quotes.length)];
 }
 
-// Export for global use
-window.utils = {
-    formatDate,
-    formatTime,
-    escapeHtml,
-    showToast,
-    createFloatingHearts,
-    playSound,
-    formatRelationshipDuration,
-    updateCountdown,
-    getRandomLoveMeter,
-    getLoveMeterMessage,
-    getRandomLoveQuote,
-    setCurrentDate,
-    scrollToElement,
-    copyToClipboard
-};
+// Get current date string
+function getCurrentDateString() {
+    const now = new Date();
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    return now.toLocaleDateString('id-ID', options);
+}

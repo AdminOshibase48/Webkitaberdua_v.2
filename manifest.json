@@ -1,14 +1,14 @@
 {
-    "name": "Couple Love Dashboard",
-    "short_name": "CoupleLove",
-    "description": "Private couple dashboard for LDR couples - Our love story together",
+    "name": "OurStoryTogether",
+    "short_name": "OurStoryTogether",
+    "description": "Private couple dashboard for LDR couples",
     "start_url": "/index.html",
     "display": "standalone",
     "theme_color": "#FF6B9D",
     "background_color": "#FFF0F6",
     "orientation": "portrait",
     "scope": "/",
-    "lang": "en",
+    "lang": "id",
     "dir": "ltr",
     "icons": [
         {
@@ -68,37 +68,18 @@
     ],
     "screenshots": [
         {
-            "src": "assets/images/screenshot-mobile-1.png",
+            "src": "assets/images/screenshot-1.png",
             "sizes": "1080x1920",
             "type": "image/png",
             "form_factor": "narrow",
-            "label": "Dashboard Home"
-        },
-        {
-            "src": "assets/images/screenshot-mobile-2.png",
-            "sizes": "1080x1920",
-            "type": "image/png",
-            "form_factor": "narrow",
-            "label": "Chat with Partner"
+            "label": "Dashboard"
         }
     ],
     "shortcuts": [
         {
-            "name": "Send Love",
-            "short_name": "Love",
-            "description": "Quickly send a love note or poke",
-            "url": "/index.html?action=love",
-            "icons": [
-                {
-                    "src": "assets/images/shortcut-love.png",
-                    "sizes": "96x96"
-                }
-            ]
-        },
-        {
-            "name": "Open Chat",
+            "name": "Chat",
             "short_name": "Chat",
-            "description": "Go to chat with your partner",
+            "description": "Buka chat dengan pasangan",
             "url": "/index.html?action=chat",
             "icons": [
                 {
@@ -106,23 +87,8 @@
                     "sizes": "96x96"
                 }
             ]
-        },
-        {
-            "name": "View Memories",
-            "short_name": "Memories",
-            "description": "See your beautiful memories",
-            "url": "/index.html?action=memories",
-            "icons": [
-                {
-                    "src": "assets/images/shortcut-memories.png",
-                    "sizes": "96x96"
-                }
-            ]
         }
     ],
-    "categories": ["lifestyle", "social", "productivity"],
-    "iarc_rating_id": "",
-    "prefer_related_applications": false,
-    "related_applications": [],
+    "categories": ["lifestyle", "social"],
     "display_override": ["window-controls-overlay", "standalone"]
 }

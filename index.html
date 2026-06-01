@@ -345,34 +345,74 @@
 <script src="assets/js/config.js"></script>
 <script src="assets/js/utils.js"></script>
 <script src="assets/js/app.js"></script>
+
 <script>
-// Deteksi ketika user menutup tab atau browser
-window.addEventListener('beforeunload', async function() {
-    if (window.appState && window.appState.userProfile) {
-        try {
-            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            await supabase
-                .from('profiles')
-                .update({ is_online: false, last_seen: new Date() })
-                .eq('id', window.appState.userProfile.id);
-        } catch(e) {
-            console.log('Offline update error:', e);
+// ========================================
+// DETEKSI TUTUP BROWSER / TAB
+// ========================================
+
+// Fungsi untuk update status offline
+async function setUserOffline() {
+    if (!window.appState || !window.appState.userProfile) {
+        console.log("Tidak ada user profile, skip offline update");
+        return;
+    }
+    
+    try {
+        // Gunakan supabase client yang sudah ada
+        const { data, error } = await window._supabaseClient
+            .from('profiles')
+            .update({ is_online: false, last_seen: new Date() })
+            .eq('id', window.appState.userProfile.id);
+        
+        if (error) {
+            console.error("Gagal update offline:", error);
+        } else {
+            console.log("✅ Status offline berhasil diupdate");
+        }
+    } catch(e) {
+        console.log("Offline update error:", e);
+    }
+}
+
+// Event ketika user menutup tab atau browser
+window.addEventListener('beforeunload', function() {
+    console.log("🔄 Browser/tab akan ditutup, update status offline...");
+    setUserOffline();
+});
+
+// Event ketika page di-refresh atau di-hide
+window.addEventListener('pagehide', function() {
+    console.log("🔄 Page di-hide, update status offline...");
+    setUserOffline();
+});
+
+// Event ketika visibility berubah (tab di-minimize)
+document.addEventListener('visibilitychange', async function() {
+    if (document.hidden) {
+        console.log("📱 Tab di-minimize, update status offline...");
+        await setUserOffline();
+    } else {
+        console.log("📱 Tab aktif kembali, update status online...");
+        if (window.appState && window.appState.userProfile && window._supabaseClient) {
+            try {
+                await window._supabaseClient
+                    .from('profiles')
+                    .update({ is_online: true, last_seen: new Date() })
+                    .eq('id', window.appState.userProfile.id);
+                console.log("✅ Status online berhasil diupdate");
+            } catch(e) {
+                console.log("Online update error:", e);
+            }
         }
     }
 });
 
-// Deteksi ketika user refresh halaman
-window.addEventListener('pagehide', async function() {
-    if (window.appState && window.appState.userProfile) {
-        try {
-            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            await supabase
-                .from('profiles')
-                .update({ is_online: false, last_seen: new Date() })
-                .eq('id', window.appState.userProfile.id);
-        } catch(e) {
-            console.log('Offline update error:', e);
-        }
+// Hentikan heartbeat ketika page di-unload
+window.addEventListener('unload', function() {
+    if (window.appState && window.appState.heartbeatInterval) {
+        clearInterval(window.appState.heartbeatInterval);
+        window.appState.heartbeatInterval = null;
     }
 });
 </script>

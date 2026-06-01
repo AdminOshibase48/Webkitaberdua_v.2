@@ -1,65 +1,134 @@
 // ========================================
-// MAIN APPLICATION LOGIC
+// COUPLE DASHBOARD - FINAL VERSION
 // ========================================
 
-// Initialize Supabase client (hanya sekali)
-const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Inisialisasi Supabase
+const _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Global variables
-let currentUser = null;
-let currentCouple = null;
-let currentPartner = null;
-let userProfile = null;
-let partnerProfile = null;
-let chatChannel = null;
-let countdownInterval = null;// ========================================
-// MAIN APPLICATION LOGIC - FIXED VERSION
-// ========================================
+// Global state (gunakan window object untuk menghindari konflik)
+window.appState = {
+    currentUser: null,
+    currentCouple: null,
+    currentPartner: null,
+    userProfile: null,
+    partnerProfile: null,
+    countdownInterval: null,
+    heartbeatInterval: null
+};
 
-// Initialize Supabase client
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// Global variables
-let currentUser = null;
-let currentCouple = null;
-let currentPartner = null;
-let userProfile = null;
-let partnerProfile = null;
-let countdownInterval = null;
-let heartbeatInterval = null;
-let notificationPermission = false;
-
-// DOM Elements
-let dashboardContainer, loadingScreen, sections;
+// DOM Elements cache
+let domElements = {};
 
 // ========================================
-// INITIALIZATION
+// UTILITY FUNCTIONS (Internal)
 // ========================================
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // Get DOM elements
-    dashboardContainer = document.getElementById('dashboardContainer');
-    loadingScreen = document.getElementById('loadingScreen');
-    sections = {
-        dashboard: document.getElementById('dashboardSection'),
-        chat: document.getElementById('chatSection'),
-        memories: document.getElementById('memoriesSection'),
-        letters: document.getElementById('lettersSection')
-    };
-    
-    // Request notification permission
-    if ('Notification' in window) {
-        const permission = await Notification.requestPermission();
-        notificationPermission = permission === 'granted';
+function formatDate(date, format = 'long') {
+    if (!date) return '';
+    const d = new Date(date);
+    if (format === 'short') {
+        return d.toLocaleDateString('id-ID');
     }
+    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatTime(date) {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function showToast(message, type = 'love') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
     
-    // Setup event listeners
-    setupEventListeners();
-    setupNavigation();
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.innerHTML = `<i class="fas fa-heart" style="color: #FF6B9D;"></i><span>${escapeHtml(message)}</span>`;
+    container.appendChild(toast);
     
-    // Check authentication
-    checkAuth();
-});
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function createFloatingHearts(count = 10) {
+    const container = document.getElementById('floatingHearts');
+    if (!container) return;
+    
+    for (let i = 0; i < count; i++) {
+        const heart = document.createElement('div');
+        heart.className = 'floating-heart';
+        heart.innerHTML = '<i class="fas fa-heart"></i>';
+        heart.style.left = Math.random() * 100 + '%';
+        heart.style.animationDuration = 2 + Math.random() * 3 + 's';
+        heart.style.animationDelay = Math.random() * 1 + 's';
+        heart.style.fontSize = 0.8 + Math.random() * 1 + 'rem';
+        container.appendChild(heart);
+        setTimeout(() => heart.remove(), 5000);
+    }
+}
+
+function calculateRelationshipDuration(startDate) {
+    if (!startDate) return { years: 0, months: 0, days: 0, totalDays: 0 };
+    const start = new Date(startDate);
+    const now = new Date();
+    const totalDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+    return { years: 0, months: 0, days: 0, totalDays };
+}
+
+function formatRelationshipDuration(startDate) {
+    if (!startDate) return 'Just started our journey';
+    const start = new Date(startDate);
+    const now = new Date();
+    const totalDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+    
+    if (totalDays >= 365) {
+        const years = Math.floor(totalDays / 365);
+        return `${years} year${years > 1 ? 's' : ''} of love`;
+    } else if (totalDays >= 30) {
+        const months = Math.floor(totalDays / 30);
+        return `${months} month${months > 1 ? 's' : ''} of love`;
+    } else {
+        return `${totalDays} day${totalDays > 1 ? 's' : ''} of love`;
+    }
+}
+
+function getRandomLoveMeter() {
+    return Math.floor(Math.random() * 11) + 90;
+}
+
+function getLoveMeterMessage(value) {
+    if (value >= 98) return "You two are inseparable! ❤️";
+    if (value >= 95) return "Perfect match! 💕";
+    if (value >= 90) return "Soulmates forever! 💗";
+    return "Love is growing everyday! 💖";
+}
+
+function getRandomLoveQuote() {
+    const quotes = [
+        "In every heartbeat, there's your name.",
+        "You are my today and all of my tomorrows.",
+        "Every love story is beautiful, but ours is my favorite.",
+        "Distance means so little when someone means so much.",
+        "You are the best thing that's ever been mine."
+    ];
+    return quotes[Math.floor(Math.random() * quotes.length)];
+}
+
+function getCurrentDateString() {
+    const now = new Date();
+    return now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
 
 // ========================================
 // AUTHENTICATION
@@ -67,12 +136,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function checkAuth() {
     try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await _supabaseClient.auth.getSession();
         
         if (session) {
-            currentUser = session.user;
-            if (dashboardContainer) dashboardContainer.style.display = 'block';
-            if (loadingScreen) loadingScreen.classList.add('hidden');
+            window.appState.currentUser = session.user;
+            const dashboard = document.getElementById('dashboardContainer');
+            const loading = document.getElementById('loadingScreen');
+            if (dashboard) dashboard.style.display = 'block';
+            if (loading) loading.classList.add('hidden');
             await initializeDashboard();
             setupRealtimeListeners();
             startHeartbeat();
@@ -80,40 +151,35 @@ async function checkAuth() {
             window.location.href = 'login.html';
         }
     } catch (error) {
-        console.error('Auth check error:', error);
-        if (loadingScreen) loadingScreen.classList.add('hidden');
+        console.error('Auth error:', error);
+        const loading = document.getElementById('loadingScreen');
+        if (loading) loading.classList.add('hidden');
         window.location.href = 'login.html';
     }
 }
 
-async function logout() {
-    // Update offline status before logout
-    if (userProfile) {
-        await supabase
+async function logoutUser() {
+    if (window.appState.userProfile) {
+        await _supabaseClient
             .from('profiles')
             .update({ is_online: false, last_seen: new Date() })
-            .eq('id', userProfile.id);
+            .eq('id', window.appState.userProfile.id);
     }
-    
-    await supabase.auth.signOut();
+    await _supabaseClient.auth.signOut();
     window.location.href = 'login.html';
 }
 
-// Heartbeat to keep online status
 function startHeartbeat() {
-    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    if (window.appState.heartbeatInterval) clearInterval(window.appState.heartbeatInterval);
     
-    heartbeatInterval = setInterval(async () => {
-        if (currentUser && userProfile) {
-            await supabase
+    window.appState.heartbeatInterval = setInterval(async () => {
+        if (window.appState.currentUser && window.appState.userProfile) {
+            await _supabaseClient
                 .from('profiles')
-                .update({ 
-                    is_online: true, 
-                    last_seen: new Date() 
-                })
-                .eq('id', userProfile.id);
+                .update({ is_online: true, last_seen: new Date() })
+                .eq('id', window.appState.userProfile.id);
         }
-    }, 30000); // Update every 30 seconds
+    }, 30000);
 }
 
 // ========================================
@@ -122,7 +188,8 @@ function startHeartbeat() {
 
 async function initializeDashboard() {
     try {
-        if (loadingScreen) loadingScreen.classList.remove('hidden');
+        const loading = document.getElementById('loadingScreen');
+        if (loading) loading.classList.remove('hidden');
         
         await loadUserProfile();
         await loadCoupleData();
@@ -131,52 +198,47 @@ async function initializeDashboard() {
         await loadLetters();
         await loadMemories();
         await loadCountdown();
-        await loadUnreadNotifications();
         
         updateWelcomeMessage();
         updateRelationshipInfo();
         updateLoveMeter();
         
-        const dateElement = document.getElementById('currentDate');
-        if (dateElement) dateElement.textContent = getCurrentDateString();
+        const dateEl = document.getElementById('currentDate');
+        if (dateEl) dateEl.textContent = getCurrentDateString();
         
-        const quoteElement = document.getElementById('coupleQuote');
-        if (quoteElement) quoteElement.textContent = `"${getRandomLoveQuote()}"`;
+        const quoteEl = document.getElementById('coupleQuote');
+        if (quoteEl) quoteEl.textContent = `"${getRandomLoveQuote()}"`;
         
-        // Start floating hearts
-        setInterval(() => {
-            createFloatingHearts(3);
-        }, 8000);
+        setInterval(() => createFloatingHearts(3), 8000);
         
-        if (loadingScreen) loadingScreen.classList.add('hidden');
-        
+        if (loading) loading.classList.add('hidden');
     } catch (error) {
-        console.error('Error initializing dashboard:', error);
-        if (loadingScreen) loadingScreen.classList.add('hidden');
-        showToast('Error loading dashboard. Please refresh.', 'error');
+        console.error('Init error:', error);
+        const loading = document.getElementById('loadingScreen');
+        if (loading) loading.classList.add('hidden');
+        showToast('Error loading dashboard', 'error');
     }
 }
 
 async function loadUserProfile() {
     try {
-        const { data: profile, error } = await supabase
+        const { data, error } = await _supabaseClient
             .from('profiles')
             .select('*')
-            .eq('user_id', currentUser.id)
+            .eq('user_id', window.appState.currentUser.id)
             .maybeSingle();
         
         if (error && error.code !== 'PGRST116') {
-            console.error('Error loading profile:', error);
+            console.error('Profile error:', error);
             return;
         }
         
-        if (!profile) {
-            // Create profile if not exists
-            const { data: newProfile, error: insertError } = await supabase
+        if (!data) {
+            const { data: newProfile, error: insertError } = await _supabaseClient
                 .from('profiles')
                 .insert({
-                    user_id: currentUser.id,
-                    full_name: currentUser.email?.split('@')[0] || 'Love',
+                    user_id: window.appState.currentUser.id,
+                    full_name: window.appState.currentUser.email?.split('@')[0] || 'Love',
                     mood_emoji: '😊',
                     status_text: 'Happy',
                     is_online: true,
@@ -186,118 +248,96 @@ async function loadUserProfile() {
                 .single();
             
             if (!insertError && newProfile) {
-                userProfile = newProfile;
+                window.appState.userProfile = newProfile;
             }
         } else {
-            userProfile = profile;
-            // Update online status
-            await supabase
+            window.appState.userProfile = data;
+            await _supabaseClient
                 .from('profiles')
                 .update({ is_online: true, last_seen: new Date() })
-                .eq('id', profile.id);
+                .eq('id', data.id);
         }
     } catch (err) {
-        console.error('Error in loadUserProfile:', err);
+        console.error('loadUserProfile error:', err);
     }
 }
 
 async function loadCoupleData() {
     try {
-        const { data: couple, error } = await supabase
+        const { data, error } = await _supabaseClient
             .from('couples')
             .select('*')
-            .or(`partner1_id.eq.${currentUser.id},partner2_id.eq.${currentUser.id}`)
+            .or(`partner1_id.eq.${window.appState.currentUser.id},partner2_id.eq.${window.appState.currentUser.id}`)
             .maybeSingle();
         
         if (error) {
-            console.error('Error loading couple:', error);
+            console.error('Couple error:', error);
             return;
         }
         
-        if (couple) {
-            currentCouple = couple;
-            currentPartner = couple.partner1_id === currentUser.id ? couple.partner2_id : couple.partner1_id;
+        if (data) {
+            window.appState.currentCouple = data;
+            window.appState.currentPartner = data.partner1_id === window.appState.currentUser.id ? data.partner2_id : data.partner1_id;
             
-            // Update user profile with couple_id
-            if (userProfile && !userProfile.couple_id) {
-                await supabase
+            if (window.appState.userProfile && !window.appState.userProfile.couple_id) {
+                await _supabaseClient
                     .from('profiles')
-                    .update({ couple_id: couple.id })
-                    .eq('id', userProfile.id);
-                userProfile.couple_id = couple.id;
+                    .update({ couple_id: data.id })
+                    .eq('id', window.appState.userProfile.id);
+                window.appState.userProfile.couple_id = data.id;
             }
-        } else {
-            console.log('No couple found. Please create a couple record in database.');
-            showToast('Please set up your couple profile in database', 'error');
         }
     } catch (err) {
-        console.error('Error in loadCoupleData:', err);
+        console.error('loadCoupleData error:', err);
     }
 }
 
 async function loadPartnerInfo() {
-    if (!currentPartner) return;
+    if (!window.appState.currentPartner) return;
     
     try {
-        const { data: profile, error } = await supabase
+        const { data, error } = await _supabaseClient
             .from('profiles')
             .select('*')
-            .eq('user_id', currentPartner)
+            .eq('user_id', window.appState.currentPartner)
             .maybeSingle();
         
         if (error) {
-            console.error('Error loading partner:', error);
+            console.error('Partner error:', error);
             return;
         }
         
-        partnerProfile = profile;
-        updatePartnerStatus(profile);
+        window.appState.partnerProfile = data;
+        updatePartnerStatus(data);
     } catch (err) {
-        console.error('Error in loadPartnerInfo:', err);
+        console.error('loadPartnerInfo error:', err);
     }
 }
 
 function updatePartnerStatus(profile) {
-    const moodElement = document.getElementById('partnerMood');
-    const statusElement = document.getElementById('partnerStatusText');
-    const locationElement = document.getElementById('partnerLocation');
-    const onlineIndicator = document.getElementById('onlineIndicator');
+    const moodEl = document.getElementById('partnerMood');
+    const statusEl = document.getElementById('partnerStatusText');
+    const locationEl = document.getElementById('partnerLocation');
+    const indicatorEl = document.getElementById('onlineIndicator');
     const partnerAvatar = document.getElementById('partnerAvatar');
-    const chatPartnerAvatar = document.getElementById('chatPartnerAvatar');
     const chatPartnerName = document.getElementById('chatPartnerName');
     const typingStatus = document.getElementById('typingStatus');
     
-    if (moodElement) moodElement.textContent = profile?.mood_emoji || '😊';
-    if (statusElement) statusElement.textContent = profile?.status_text || 'Happy';
+    if (moodEl) moodEl.textContent = profile?.mood_emoji || '😊';
+    if (statusEl) statusEl.textContent = profile?.status_text || 'Happy';
     
     const isOnline = profile?.is_online || false;
-    const lastSeen = profile?.last_seen ? new Date(profile.last_seen) : null;
-    const lastSeenText = lastSeen ? `Last seen: ${formatTime(lastSeen)}` : '';
-    
-    if (locationElement) {
-        locationElement.innerHTML = isOnline ? '🟢 Online' : `⚫ ${lastSeenText}`;
-    }
-    
-    if (onlineIndicator) {
-        onlineIndicator.style.background = isOnline ? '#22C55E' : '#9CA3AF';
-    }
-    
-    if (chatPartnerName) {
-        chatPartnerName.textContent = profile?.full_name?.split(' ')[0] || 'My Love';
-    }
-    
+    if (locationEl) locationEl.innerHTML = isOnline ? '🟢 Online' : '⚫ Offline';
+    if (indicatorEl) indicatorEl.style.background = isOnline ? '#22C55E' : '#9CA3AF';
+    if (chatPartnerName) chatPartnerName.textContent = profile?.full_name?.split(' ')[0] || 'My Love';
     if (typingStatus) {
         typingStatus.textContent = isOnline ? '🟢 Online' : '⚫ Offline';
         typingStatus.style.color = isOnline ? '#22C55E' : '#9CA3AF';
     }
     
-    // Update avatar
-    const avatarColor = profile?.full_name === 'Capi' ? '#FF6B9D' : '#C4B5FD';
     if (partnerAvatar) {
-        partnerAvatar.style.background = `linear-gradient(135deg, ${avatarColor}, ${avatarColor}CC)`;
-    }
-    if (chatPartnerAvatar) {
-        chatPartnerAvatar.style.background = `linear-gradient(135deg, ${avatarColor}, ${avatarColor}CC)`;
+        const color = profile?.full_name === 'Capi' ? '#FF6B9D' : '#C4B5FD';
+        partnerAvatar.style.background = `linear-gradient(135deg, ${color}, ${color}CC)`;
     }
 }
 
@@ -306,18 +346,18 @@ function updatePartnerStatus(profile) {
 // ========================================
 
 async function loadChatMessages() {
-    if (!currentCouple) return;
+    if (!window.appState.currentCouple) return;
     
     try {
-        const { data: messages, error } = await supabase
+        const { data, error } = await _supabaseClient
             .from('messages')
             .select('*')
-            .eq('couple_id', currentCouple.id)
+            .eq('couple_id', window.appState.currentCouple.id)
             .order('created_at', { ascending: true })
             .limit(100);
         
         if (error) {
-            console.error('Error loading messages:', error);
+            console.error('Messages error:', error);
             return;
         }
         
@@ -326,20 +366,15 @@ async function loadChatMessages() {
         
         container.innerHTML = '';
         
-        if (messages && messages.length > 0) {
-            messages.forEach(msg => displayChatMessage(msg));
+        if (data && data.length > 0) {
+            data.forEach(msg => displayChatMessage(msg));
         } else {
-            container.innerHTML = `
-                <div style="text-align:center; padding:40px; color:#6B7280;">
-                    <i class="fas fa-comment-dots" style="font-size:2rem; margin-bottom:10px; display:block;"></i>
-                    <p>Say something to your love 💕</p>
-                </div>
-            `;
+            container.innerHTML = `<div style="text-align:center; padding:40px; color:#6B7280;"><i class="fas fa-comment-dots" style="font-size:2rem; margin-bottom:10px;"></i><p>Say something to your love 💕</p></div>`;
         }
         
         container.scrollTop = container.scrollHeight;
     } catch (err) {
-        console.error('Error in loadChatMessages:', err);
+        console.error('loadChatMessages error:', err);
     }
 }
 
@@ -351,18 +386,12 @@ function displayChatMessage(message) {
     if (placeholder) placeholder.remove();
     
     const div = document.createElement('div');
-    div.className = `chat-message ${message.sender_id === currentUser?.id ? 'me' : ''}`;
-    
+    const isMe = message.sender_id === window.appState.currentUser?.id;
+    div.className = `chat-message ${isMe ? 'me' : ''}`;
     const time = formatTime(message.created_at);
-    const senderName = message.sender_id === currentUser?.id ? 'Me' : (partnerProfile?.full_name || 'Love');
+    const senderName = isMe ? 'Me' : (window.appState.partnerProfile?.full_name || 'Love');
     
-    div.innerHTML = `
-        <div class="message-bubble">
-            <strong style="font-size:0.7rem; opacity:0.8;">${senderName}</strong><br>
-            ${escapeHtml(message.message)}
-        </div>
-        <div class="message-time">${time}</div>
-    `;
+    div.innerHTML = `<div class="message-bubble"><strong style="font-size:0.7rem;">${senderName}</strong><br>${escapeHtml(message.message)}</div><div class="message-time">${time}</div>`;
     
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
@@ -372,88 +401,29 @@ async function sendMessage() {
     const input = document.getElementById('chatInput');
     const message = input?.value.trim();
     
-    if (!message || !currentCouple || !currentPartner) return;
+    if (!message || !window.appState.currentCouple || !window.appState.currentPartner) return;
     
     input.value = '';
     
     try {
-        const { error } = await supabase
+        const { error } = await _supabaseClient
             .from('messages')
             .insert({
-                couple_id: currentCouple.id,
-                sender_id: currentUser.id,
-                receiver_id: currentPartner,
+                couple_id: window.appState.currentCouple.id,
+                sender_id: window.appState.currentUser.id,
+                receiver_id: window.appState.currentPartner,
                 message: message,
                 is_read: false
             });
         
         if (error) {
-            console.error('Error sending message:', error);
-            showToast('Failed to send message', 'error');
+            console.error('Send error:', error);
+            showToast('Failed to send', 'error');
             input.value = message;
-        } else {
-            // Send push notification to partner
-            if (notificationPermission && partnerProfile) {
-                sendPushNotification(partnerProfile, 'New Message 💬', message);
-            }
         }
     } catch (err) {
-        console.error('Error in sendMessage:', err);
-        showToast('Failed to send message', 'error');
+        console.error('sendMessage error:', err);
         input.value = message;
-    }
-}
-
-// ========================================
-// PUSH NOTIFICATION
-// ========================================
-
-function sendPushNotification(user, title, body) {
-    // Note: This is a simulation. For real push notifications,
-    // you need to implement using Supabase Edge Functions or a service like OneSignal
-    if (document.hidden) {
-        // Show browser notification only if tab is not active
-        if (Notification.permission === 'granted') {
-            new Notification(title, {
-                body: body,
-                icon: '/assets/images/icon-192x192.png',
-                tag: 'couple-love',
-                vibrate: [200, 100, 200]
-            });
-        }
-    }
-    showToast(`${title}: ${body}`, 'chat');
-}
-
-async function loadUnreadNotifications() {
-    if (!currentUser) return;
-    
-    try {
-        const { data: notifications, error } = await supabase
-            .from('notifications')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .eq('is_read', false)
-            .order('created_at', { ascending: false });
-        
-        if (error) {
-            console.error('Error loading notifications:', error);
-            return;
-        }
-        
-        if (notifications && notifications.length > 0) {
-            notifications.forEach(notif => {
-                showToast(notif.body, notif.type === 'message' ? 'chat' : 'poke');
-                
-                // Mark as read
-                supabase
-                    .from('notifications')
-                    .update({ is_read: true })
-                    .eq('id', notif.id);
-            });
-        }
-    } catch (err) {
-        console.error('Error in loadUnreadNotifications:', err);
     }
 }
 
@@ -462,35 +432,29 @@ async function loadUnreadNotifications() {
 // ========================================
 
 async function sendPoke(type) {
-    if (!currentCouple || !currentPartner) return;
+    if (!window.appState.currentCouple || !window.appState.currentPartner) return;
     
-    let message = '';
-    switch(type) {
-        case 'poke': message = '💗 Poke sent!'; break;
-        case 'kangen': message = '🥺 Kangen sent!'; break;
-        case 'miss_you': message = '💌 Miss You sent!'; break;
-    }
+    const messages = { poke: '💗 Poke sent!', kangen: '🥺 Kangen sent!', miss_you: '💌 Miss You sent!' };
     
     try {
-        const { error } = await supabase
+        const { error } = await _supabaseClient
             .from('pokes')
             .insert({
-                couple_id: currentCouple.id,
-                from_user_id: currentUser.id,
-                to_user_id: currentPartner,
+                couple_id: window.appState.currentCouple.id,
+                from_user_id: window.appState.currentUser.id,
+                to_user_id: window.appState.currentPartner,
                 type: type
             });
         
         if (error) {
-            console.error('Error sending poke:', error);
+            console.error('Poke error:', error);
             showToast('Failed to send', 'error');
         } else {
-            showToast(message, 'poke');
+            showToast(messages[type], 'poke');
             createFloatingHearts(15);
         }
     } catch (err) {
-        console.error('Error in sendPoke:', err);
-        showToast('Failed to send', 'error');
+        console.error('sendPoke error:', err);
     }
 }
 
@@ -503,26 +467,23 @@ async function loadLetters() {
     if (!container) return;
     
     try {
-        const { data: letters, error } = await supabase
+        const { data, error } = await _supabaseClient
             .from('letters')
             .select('*')
             .order('created_at', { ascending: true });
         
-        let lettersToShow = DEFAULT_LETTERS;
+        let letters = DEFAULT_LETTERS;
+        if (!error && data && data.length > 0) letters = data;
         
-        if (!error && letters && letters.length > 0) {
-            lettersToShow = letters;
-        }
-        
-        container.innerHTML = lettersToShow.map(letter => `
-            <div class="letter-card" onclick="openLetterModal('${escapeHtml(letter.title)}', '${escapeHtml(letter.content)}')">
+        container.innerHTML = letters.map(letter => `
+            <div class="letter-card" onclick="window.openLetterModal('${escapeHtml(letter.title)}', '${escapeHtml(letter.content)}')">
                 <i class="fas fa-envelope-open-heart"></i>
                 <h4>${escapeHtml(letter.title)}</h4>
                 <p>Open when you need this 💕</p>
             </div>
         `).join('');
     } catch (err) {
-        console.error('Error in loadLetters:', err);
+        console.error('loadLetters error:', err);
     }
 }
 
@@ -535,47 +496,28 @@ async function loadMemories() {
     if (!container) return;
     
     try {
-        const { data: memories, error } = await supabase
+        const { data, error } = await _supabaseClient
             .from('memories')
             .select('*')
-            .eq('couple_id', currentCouple?.id)
+            .eq('couple_id', window.appState.currentCouple?.id)
             .order('date', { ascending: false });
         
-        let memoriesToShow = DEFAULT_MEMORIES;
+        let memories = DEFAULT_MEMORIES;
+        if (!error && data && data.length > 0) memories = data;
         
-        if (!error && memories && memories.length > 0) {
-            memoriesToShow = memories;
-        }
-        
-        if (memoriesToShow.length === 0) {
-            container.innerHTML = `
-                <div class="gallery-item">
-                    <div class="gallery-placeholder">
-                        <i class="fas fa-heart"></i>
-                        <p>No memories yet. Add your first memory!</p>
-                    </div>
-                </div>
-            `;
+        if (memories.length === 0) {
+            container.innerHTML = `<div class="gallery-item"><div class="gallery-placeholder"><i class="fas fa-heart"></i><p>No memories yet.</p></div></div>`;
             return;
         }
         
-        container.innerHTML = memoriesToShow.map(memory => `
-            <div class="gallery-item" onclick="viewMemory('${escapeHtml(memory.title)}', '${escapeHtml(memory.description)}', '${memory.date}')">
-                ${memory.image_url ? 
-                    `<img src="${memory.image_url}" alt="${escapeHtml(memory.title)}">` :
-                    `<div class="gallery-placeholder">
-                        <i class="fas fa-camera-retro"></i>
-                        <p>📸 ${escapeHtml(memory.title)}</p>
-                    </div>`
-                }
-                <div style="padding:12px;">
-                    <h4 style="font-size:0.9rem; margin-bottom:4px;">${escapeHtml(memory.title)}</h4>
-                    <p style="font-size:0.75rem; color:#6B7280;">${formatDate(memory.date, 'short')}</p>
-                </div>
+        container.innerHTML = memories.map(memory => `
+            <div class="gallery-item" onclick="window.viewMemory('${escapeHtml(memory.title)}', '${escapeHtml(memory.description)}', '${memory.date}')">
+                ${memory.image_url ? `<img src="${memory.image_url}" alt="${escapeHtml(memory.title)}">` : `<div class="gallery-placeholder"><i class="fas fa-camera-retro"></i><p>📸 ${escapeHtml(memory.title)}</p></div>`}
+                <div style="padding:12px;"><h4 style="font-size:0.9rem;">${escapeHtml(memory.title)}</h4><p style="font-size:0.75rem; color:#6B7280;">${formatDate(memory.date, 'short')}</p></div>
             </div>
         `).join('');
     } catch (err) {
-        console.error('Error in loadMemories:', err);
+        console.error('loadMemories error:', err);
     }
 }
 
@@ -584,35 +526,45 @@ async function loadMemories() {
 // ========================================
 
 async function loadCountdown() {
-    if (!currentCouple || !currentCouple.next_meeting_date) {
-        const infoElement = document.getElementById('nextMeetingInfo');
-        if (infoElement) {
-            infoElement.innerHTML = '<i class="fas fa-calendar-alt"></i><span>Set your next meeting date in database</span>';
-        }
+    if (!window.appState.currentCouple || !window.appState.currentCouple.next_meeting_date) {
+        const infoEl = document.getElementById('nextMeetingInfo');
+        if (infoEl) infoEl.innerHTML = '<i class="fas fa-calendar-alt"></i><span>Set your next meeting date</span>';
         return;
     }
     
-    const targetDate = new Date(currentCouple.next_meeting_date);
-    const elements = {
-        days: document.getElementById('countdownDays'),
-        hours: document.getElementById('countdownHours'),
-        minutes: document.getElementById('countdownMins'),
-        seconds: document.getElementById('countdownSecs')
-    };
+    const targetDate = new Date(window.appState.currentCouple.next_meeting_date);
+    const infoEl = document.getElementById('nextMeetingInfo');
+    if (infoEl) infoEl.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>Next meeting: ${formatDate(targetDate)}</span>`;
     
-    const infoElement = document.getElementById('nextMeetingInfo');
-    if (infoElement) {
-        infoElement.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>Next meeting: ${formatDate(targetDate)}</span>`;
-    }
-    
-    if (countdownInterval) clearInterval(countdownInterval);
+    if (window.appState.countdownInterval) clearInterval(window.appState.countdownInterval);
     
     function update() {
-        updateCountdown(targetDate, elements);
+        const now = new Date();
+        const diff = targetDate - now;
+        if (diff <= 0) {
+            ['countdownDays', 'countdownHours', 'countdownMins', 'countdownSecs'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '00';
+            });
+            return;
+        }
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (86400000)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (3600000)) / (1000 * 60));
+        const seconds = Math.floor((diff % (60000)) / 1000);
+        
+        const daysEl = document.getElementById('countdownDays');
+        const hoursEl = document.getElementById('countdownHours');
+        const minsEl = document.getElementById('countdownMins');
+        const secsEl = document.getElementById('countdownSecs');
+        if (daysEl) daysEl.textContent = String(days).padStart(2, '0');
+        if (hoursEl) hoursEl.textContent = String(hours).padStart(2, '0');
+        if (minsEl) minsEl.textContent = String(minutes).padStart(2, '0');
+        if (secsEl) secsEl.textContent = String(seconds).padStart(2, '0');
     }
     
     update();
-    countdownInterval = setInterval(update, 1000);
+    window.appState.countdownInterval = setInterval(update, 1000);
 }
 
 // ========================================
@@ -620,32 +572,26 @@ async function loadCountdown() {
 // ========================================
 
 function updateWelcomeMessage() {
-    const userNameElement = document.getElementById('userName');
-    if (userNameElement && userProfile) {
-        const name = userProfile.full_name?.split(' ')[0] || 'Love';
-        userNameElement.textContent = name;
+    const userNameEl = document.getElementById('userName');
+    if (userNameEl && window.appState.userProfile) {
+        userNameEl.textContent = window.appState.userProfile.full_name?.split(' ')[0] || 'Love';
     }
 }
 
 function updateRelationshipInfo() {
-    if (!currentCouple?.started_date) return;
-    
-    const durationElement = document.getElementById('relationshipDuration');
-    if (durationElement) {
-        durationElement.textContent = formatRelationshipDuration(currentCouple.started_date);
-    }
+    if (!window.appState.currentCouple?.started_date) return;
+    const durationEl = document.getElementById('relationshipDuration');
+    if (durationEl) durationEl.textContent = formatRelationshipDuration(window.appState.currentCouple.started_date);
 }
 
 function updateLoveMeter() {
-    const valueElement = document.getElementById('loveMeterValue');
-    const fillElement = document.getElementById('loveMeterFill');
-    const messageElement = document.getElementById('loveMeterMessage');
-    
     const value = getRandomLoveMeter();
-    
-    if (valueElement) valueElement.textContent = value + '%';
-    if (fillElement) fillElement.style.width = value + '%';
-    if (messageElement) messageElement.textContent = getLoveMeterMessage(value);
+    const valueEl = document.getElementById('loveMeterValue');
+    const fillEl = document.getElementById('loveMeterFill');
+    const msgEl = document.getElementById('loveMeterMessage');
+    if (valueEl) valueEl.textContent = value + '%';
+    if (fillEl) fillEl.style.width = value + '%';
+    if (msgEl) msgEl.textContent = getLoveMeterMessage(value);
 }
 
 // ========================================
@@ -653,59 +599,44 @@ function updateLoveMeter() {
 // ========================================
 
 function setupRealtimeListeners() {
-    if (!currentCouple) return;
+    if (!window.appState.currentCouple) return;
     
-    // Listen for new messages
-    supabase
+    _supabaseClient
         .channel('chat-messages')
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
             table: 'messages',
-            filter: `couple_id=eq.${currentCouple.id}`
+            filter: `couple_id=eq.${window.appState.currentCouple.id}`
         }, (payload) => {
-            const newMessage = payload.new;
-            if (newMessage.sender_id !== currentUser.id) {
-                displayChatMessage(newMessage);
+            if (payload.new.sender_id !== window.appState.currentUser.id) {
+                displayChatMessage(payload.new);
                 showToast('New message from your love! 💬', 'chat');
-                
-                // Play sound or show notification
-                if (document.hidden) {
-                    sendPushNotification(null, 'New Message 💬', newMessage.message);
-                }
             }
         })
         .subscribe();
     
-    // Listen for pokes
-    supabase
+    _supabaseClient
         .channel('pokes')
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
             table: 'pokes',
-            filter: `to_user_id=eq.${currentUser.id}`
-        }, (payload) => {
-            const poke = payload.new;
-            let message = '';
-            if (poke.type === 'poke') message = '💗 Someone poked you!';
-            else if (poke.type === 'kangen') message = '🥺 Someone misses you!';
-            else message = '💌 Someone sent you love!';
-            
-            showToast(message, 'poke');
+            filter: `to_user_id=eq.${window.appState.currentUser.id}`
+        }, () => {
+            showToast('💗 Someone sent you love!', 'poke');
             createFloatingHearts(20);
         })
         .subscribe();
     
-    // Listen for profile changes (online/offline status)
-    supabase
+    _supabaseClient
         .channel('profiles-online')
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
             table: 'profiles'
         }, async (payload) => {
-            if (payload.new.user_id === currentPartner) {
+            if (payload.new.user_id === window.appState.currentPartner) {
                 updatePartnerStatus(payload.new);
             }
         })
@@ -713,568 +644,44 @@ function setupRealtimeListeners() {
 }
 
 // ========================================
-// NAVIGATION
+// MODAL FUNCTIONS (Global)
 // ========================================
 
-function setupNavigation() {
-    const navBtns = document.querySelectorAll('.nav-btn');
-    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-    const navMenu = document.querySelector('.nav-menu');
-    
-    navBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const section = btn.getAttribute('data-section');
-            if (section) {
-                switchSection(section);
-            }
-            
-            if (navMenu && window.innerWidth <= 768) {
-                navMenu.classList.remove('active');
-            }
-        });
-    });
-    
-    if (mobileMenuBtn) {
-        mobileMenuBtn.addEventListener('click', () => {
-            if (navMenu) navMenu.classList.toggle('active');
-        });
-    }
-}
-
-function switchSection(section) {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        if (btn.getAttribute('data-section') === section) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
-    
-    if (sections) {
-        Object.keys(sections).forEach(key => {
-            if (sections[key]) {
-                if (key === section) {
-                    sections[key].classList.add('active');
-                } else {
-                    sections[key].classList.remove('active');
-                }
-            }
-        });
-    }
-    
-    if (section === 'chat') {
-        const container = document.getElementById('chatMessages');
-        if (container) container.scrollTop = container.scrollHeight;
-    }
-}
-
-// ========================================
-// EVENT LISTENERS SETUP
-// ========================================
-
-function setupEventListeners() {
-    const logoutBtns = document.querySelectorAll('#logoutBtn, #logoutBtnNav');
-    logoutBtns.forEach(btn => {
-        if (btn) btn.addEventListener('click', logout);
-    });
-    
-    const sendBtn = document.getElementById('sendChatBtn');
-    if (sendBtn) sendBtn.addEventListener('click', sendMessage);
-    
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) {
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
-    }
-    
-    document.querySelectorAll('.poke-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const pokeType = btn.getAttribute('data-poke');
-            if (pokeType) sendPoke(pokeType);
-        });
-    });
-    
-    const addMemoryBtn = document.getElementById('addMemoryBtn');
-    if (addMemoryBtn) addMemoryBtn.addEventListener('click', openMemoryModal);
-    
-    const memoryForm = document.getElementById('memoryForm');
-    if (memoryForm) memoryForm.addEventListener('submit', addMemory);
-    
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('active');
-            }
-        });
-    });
-    
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            document.querySelectorAll('.modal.active').forEach(modal => {
-                modal.classList.remove('active');
-            });
-        }
-    });
-    
-    // Handle page visibility change (update online status)
-    document.addEventListener('visibilitychange', async () => {
-        if (currentUser && userProfile) {
-            const isVisible = !document.hidden;
-            await supabase
-                .from('profiles')
-                .update({ is_online: isVisible, last_seen: new Date() })
-                .eq('id', userProfile.id);
-        }
-    });
-}
-
-// Make functions global
-window.openLetterModal = openLetterModal;
-window.closeLetterModal = closeLetterModal;
-window.openMemoryModal = openMemoryModal;
-window.closeMemoryModal = closeMemoryModal;
-window.viewMemory = viewMemory;
-window.addMemory = addMemory;
-
-// DOM Elements
-let dashboardContainer, loadingScreen, sections;
-
-// ========================================
-// INITIALIZATION
-// ========================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    // Get DOM elements
-    dashboardContainer = document.getElementById('dashboardContainer');
-    loadingScreen = document.getElementById('loadingScreen');
-    sections = {
-        dashboard: document.getElementById('dashboardSection'),
-        chat: document.getElementById('chatSection'),
-        memories: document.getElementById('memoriesSection'),
-        letters: document.getElementById('lettersSection')
-    };
-    
-    // Setup event listeners
-    setupEventListeners();
-    setupNavigation();
-    
-    // Check authentication
-    checkAuth();
-    
-    // Update online status on page unload
-    window.addEventListener('beforeunload', async () => {
-        if (currentUser && userProfile) {
-            await _supabase
-                .from('profiles')
-                .update({ is_online: false, last_seen: new Date() })
-                .eq('id', userProfile.id);
-        }
-    });
-});
-
-// ========================================
-// AUTHENTICATION
-// ========================================
-
-async function checkAuth() {
-    try {
-        const { data: { session } } = await _supabase.auth.getSession();
-        
-        if (session) {
-            currentUser = session.user;
-            if (dashboardContainer) dashboardContainer.style.display = 'block';
-            if (loadingScreen) loadingScreen.classList.add('hidden');
-            await initializeDashboard();
-            setupRealtimeListeners();
-        } else {
-            window.location.href = 'login.html';
-        }
-    } catch (error) {
-        console.error('Auth check error:', error);
-        if (loadingScreen) loadingScreen.classList.add('hidden');
-        window.location.href = 'login.html';
-    }
-}
-
-async function logout() {
-    await _supabase.auth.signOut();
-    window.location.href = 'login.html';
-}
-
-// ========================================
-// DASHBOARD INITIALIZATION
-// ========================================
-
-async function initializeDashboard() {
-    try {
-        // Show loading
-        if (loadingScreen) loadingScreen.classList.remove('hidden');
-        
-        // Load all data
-        await loadUserProfile();
-        await loadCoupleData();
-        await loadPartnerInfo();
-        await loadChatMessages();
-        await loadLetters();
-        await loadMemories();
-        await loadCountdown();
-        
-        // Update UI
-        updateWelcomeMessage();
-        updateRelationshipInfo();
-        updateLoveMeter();
-        
-        const dateElement = document.getElementById('currentDate');
-        if (dateElement) dateElement.textContent = getCurrentDateString();
-        
-        const quoteElement = document.getElementById('coupleQuote');
-        if (quoteElement) quoteElement.textContent = `"${getRandomLoveQuote()}"`;
-        
-        // Start floating hearts
-        setInterval(() => {
-            createFloatingHearts(3);
-        }, 5000);
-        
-        // Hide loading
-        if (loadingScreen) loadingScreen.classList.add('hidden');
-        
-    } catch (error) {
-        console.error('Error initializing dashboard:', error);
-        if (loadingScreen) loadingScreen.classList.add('hidden');
-        showToast('Error loading dashboard. Please refresh.', 'error');
-    }
-}
-
-async function loadUserProfile() {
-    const { data: profile, error } = await _supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .single();
-    
-    if (error && error.code !== 'PGRST116') {
-        console.error('Error loading profile:', error);
-        return;
-    }
-    
-    if (!profile) {
-        // Create profile if not exists
-        const { data: newProfile, error: insertError } = await _supabase
-            .from('profiles')
-            .insert({
-                user_id: currentUser.id,
-                full_name: currentUser.email?.split('@')[0] || 'Love',
-                mood_emoji: '😊',
-                status_text: 'Happy',
-                is_online: true,
-                last_seen: new Date()
-            })
-            .select()
-            .single();
-        
-        if (!insertError && newProfile) {
-            userProfile = newProfile;
-        }
-    } else {
-        userProfile = profile;
-        // Update online status
-        await _supabase
-            .from('profiles')
-            .update({ is_online: true, last_seen: new Date() })
-            .eq('id', profile.id);
-    }
-}
-
-async function loadCoupleData() {
-    const { data: couple, error } = await _supabase
-        .from('couples')
-        .select('*')
-        .or(`partner1_id.eq.${currentUser.id},partner2_id.eq.${currentUser.id}`)
-        .single();
-    
-    if (error) {
-        console.error('Error loading couple:', error);
-        return;
-    }
-    
-    currentCouple = couple;
-    currentPartner = couple.partner1_id === currentUser.id ? couple.partner2_id : couple.partner1_id;
-}
-
-async function loadPartnerInfo() {
-    if (!currentPartner) return;
-    
-    const { data: profile, error } = await _supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', currentPartner)
-        .single();
-    
-    if (error) {
-        console.error('Error loading partner:', error);
-        return;
-    }
-    
-    partnerProfile = profile;
-    updatePartnerStatus(profile);
-}
-
-function updatePartnerStatus(profile) {
-    const moodElement = document.getElementById('partnerMood');
-    const statusElement = document.getElementById('partnerStatusText');
-    const locationElement = document.getElementById('partnerLocation');
-    const onlineIndicator = document.getElementById('onlineIndicator');
-    
-    if (moodElement) moodElement.textContent = profile?.mood_emoji || '😊';
-    if (statusElement) statusElement.textContent = profile?.status_text || 'Happy';
-    if (locationElement) {
-        locationElement.innerHTML = profile?.is_online ? '🟢 Online' : '⚫ Offline';
-    }
-    if (onlineIndicator) {
-        onlineIndicator.style.background = profile?.is_online ? '#22C55E' : '#9CA3AF';
-    }
-}
-
-// ========================================
-// CHAT FUNCTIONALITY
-// ========================================
-
-async function loadChatMessages() {
-    if (!currentCouple) return;
-    
-    const { data: messages, error } = await _supabase
-        .from('messages')
-        .select('*')
-        .eq('couple_id', currentCouple.id)
-        .order('created_at', { ascending: true })
-        .limit(50);
-    
-    if (error) {
-        console.error('Error loading messages:', error);
-        return;
-    }
-    
-    const container = document.getElementById('chatMessages');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    if (messages && messages.length > 0) {
-        messages.forEach(msg => displayChatMessage(msg));
-    } else {
-        container.innerHTML = `
-            <div style="text-align:center; padding:40px; color:var(--gray-500);">
-                <i class="fas fa-comment-dots" style="font-size:2rem; margin-bottom:10px; display:block;"></i>
-                <p>Say something to your love 💕</p>
-            </div>
-        `;
-    }
-    
-    container.scrollTop = container.scrollHeight;
-}
-
-function displayChatMessage(message) {
-    const container = document.getElementById('chatMessages');
-    if (!container) return;
-    
-    // Remove placeholder if exists
-    const placeholder = container.querySelector('div[style*="text-align:center"]');
-    if (placeholder) placeholder.remove();
-    
-    const div = document.createElement('div');
-    div.className = `chat-message ${message.sender_id === currentUser?.id ? 'me' : ''}`;
-    
-    const time = formatTime(message.created_at);
-    
-    div.innerHTML = `
-        <div class="message-bubble">${escapeHtml(message.message)}</div>
-        <div class="message-time">${time}</div>
-    `;
-    
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
-}
-
-async function sendMessage() {
-    const input = document.getElementById('chatInput');
-    const message = input?.value.trim();
-    
-    if (!message || !currentCouple || !currentPartner) return;
-    
-    input.value = '';
-    
-    const { error } = await _supabase
-        .from('messages')
-        .insert({
-            couple_id: currentCouple.id,
-            sender_id: currentUser.id,
-            receiver_id: currentPartner,
-            message: message,
-            is_read: false
-        });
-    
-    if (error) {
-        console.error('Error sending message:', error);
-        showToast('Failed to send message', 'error');
-        input.value = message;
-    }
-}
-
-// ========================================
-// POKE FUNCTIONALITY
-// ========================================
-
-async function sendPoke(type) {
-    if (!currentCouple || !currentPartner) return;
-    
-    let message = '';
-    switch(type) {
-        case 'poke': message = '💗 Poke sent!'; break;
-        case 'kangen': message = '🥺 Kangen sent!'; break;
-        case 'miss_you': message = '💌 Miss You sent!'; break;
-    }
-    
-    const { error } = await _supabase
-        .from('pokes')
-        .insert({
-            couple_id: currentCouple.id,
-            from_user_id: currentUser.id,
-            to_user_id: currentPartner,
-            type: type
-        });
-    
-    if (error) {
-        console.error('Error sending poke:', error);
-        showToast('Failed to send', 'error');
-    } else {
-        showToast(message, 'poke');
-        createFloatingHearts(15);
-    }
-}
-
-// ========================================
-// LETTERS FUNCTIONALITY
-// ========================================
-
-async function loadLetters() {
-    const container = document.getElementById('lettersGrid');
-    if (!container) return;
-    
-    // Try to load from Supabase first
-    const { data: letters, error } = await _supabase
-        .from('letters')
-        .select('*')
-        .eq('couple_id', currentCouple?.id);
-    
-    let lettersToShow = DEFAULT_LETTERS;
-    
-    if (!error && letters && letters.length > 0) {
-        lettersToShow = letters;
-    }
-    
-    container.innerHTML = lettersToShow.map(letter => `
-        <div class="letter-card" onclick="openLetterModal('${escapeHtml(letter.title)}', '${escapeHtml(letter.content)}')">
-            <i class="fas fa-envelope-open-heart"></i>
-            <h4>${escapeHtml(letter.title)}</h4>
-            <p>Open when you need this 💕</p>
-        </div>
-    `).join('');
-}
-
-function openLetterModal(title, content) {
+window.openLetterModal = function(title, content) {
     const modal = document.getElementById('letterModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalContent = document.getElementById('modalContent');
-    
-    if (modalTitle) modalTitle.textContent = title;
-    if (modalContent) modalContent.innerHTML = `<p>${escapeHtml(content)}</p>`;
+    const titleEl = document.getElementById('modalTitle');
+    const contentEl = document.getElementById('modalContent');
+    if (titleEl) titleEl.textContent = title;
+    if (contentEl) contentEl.innerHTML = `<p>${escapeHtml(content)}</p>`;
     if (modal) modal.classList.add('active');
-}
+};
 
-function closeLetterModal() {
+window.closeLetterModal = function() {
     const modal = document.getElementById('letterModal');
     if (modal) modal.classList.remove('active');
-}
+};
 
-// ========================================
-// MEMORIES FUNCTIONALITY
-// ========================================
-
-async function loadMemories() {
-    const container = document.getElementById('galleryGrid');
-    if (!container) return;
-    
-    const { data: memories, error } = await _supabase
-        .from('memories')
-        .select('*')
-        .eq('couple_id', currentCouple?.id)
-        .order('date', { ascending: false });
-    
-    let memoriesToShow = DEFAULT_MEMORIES;
-    
-    if (!error && memories && memories.length > 0) {
-        memoriesToShow = memories;
-    }
-    
-    if (memoriesToShow.length === 0) {
-        container.innerHTML = `
-            <div class="gallery-item">
-                <div class="gallery-placeholder">
-                    <i class="fas fa-heart"></i>
-                    <p>No memories yet. Add your first memory!</p>
-                </div>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = memoriesToShow.map(memory => `
-        <div class="gallery-item" onclick="viewMemory('${escapeHtml(memory.title)}', '${escapeHtml(memory.description)}', '${memory.date}')">
-            ${memory.imageUrl ? 
-                `<img src="${memory.imageUrl}" alt="${escapeHtml(memory.title)}">` :
-                `<div class="gallery-placeholder">
-                    <i class="fas fa-camera-retro"></i>
-                    <p>📸 ${escapeHtml(memory.title)}</p>
-                </div>`
-            }
-            <div style="padding:12px;">
-                <h4 style="font-size:0.9rem; margin-bottom:4px;">${escapeHtml(memory.title)}</h4>
-                <p style="font-size:0.75rem; color:var(--gray-500);">${formatDate(memory.date, 'short')}</p>
-            </div>
-        </div>
-    `).join('');
-}
-
-function viewMemory(title, description, date) {
-    const modal = document.getElementById('letterModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalContent = document.getElementById('modalContent');
-    
-    if (modalTitle) modalTitle.textContent = `📸 ${title}`;
-    if (modalContent) {
-        modalContent.innerHTML = `
-            <p>${escapeHtml(description)}</p>
-            <p style="margin-top:12px; font-size:0.8rem; color:var(--pink-primary);">${formatDate(date)}</p>
-        `;
-    }
-    if (modal) modal.classList.add('active');
-}
-
-function openMemoryModal() {
+window.openMemoryModal = function() {
     const modal = document.getElementById('memoryModal');
     if (modal) modal.classList.add('active');
-}
+};
 
-function closeMemoryModal() {
+window.closeMemoryModal = function() {
     const modal = document.getElementById('memoryModal');
     if (modal) modal.classList.remove('active');
-}
+};
 
-async function addMemory(event) {
+window.viewMemory = function(title, description, date) {
+    const modal = document.getElementById('letterModal');
+    const titleEl = document.getElementById('modalTitle');
+    const contentEl = document.getElementById('modalContent');
+    if (titleEl) titleEl.textContent = `📸 ${title}`;
+    if (contentEl) contentEl.innerHTML = `<p>${escapeHtml(description)}</p><p style="margin-top:12px; font-size:0.8rem; color:#FF6B9D;">${formatDate(date)}</p>`;
+    if (modal) modal.classList.add('active');
+};
+
+window.addMemory = async function(event) {
     event.preventDefault();
-    
     const title = document.getElementById('memoryTitleInput')?.value;
     const description = document.getElementById('memoryDescInput')?.value;
     const date = document.getElementById('memoryDateInput')?.value;
@@ -1285,10 +692,10 @@ async function addMemory(event) {
         return;
     }
     
-    const { error } = await _supabase
+    const { error } = await _supabaseClient
         .from('memories')
         .insert({
-            couple_id: currentCouple.id,
+            couple_id: window.appState.currentCouple.id,
             title: title,
             description: description,
             date: date,
@@ -1296,152 +703,17 @@ async function addMemory(event) {
         });
     
     if (error) {
-        console.error('Error adding memory:', error);
         showToast('Failed to add memory', 'error');
     } else {
         showToast('Memory added! ❤️', 'success');
-        closeMemoryModal();
+        window.closeMemoryModal();
         await loadMemories();
-        
-        // Clear form
-        const titleInput = document.getElementById('memoryTitleInput');
-        const descInput = document.getElementById('memoryDescInput');
-        const dateInput = document.getElementById('memoryDateInput');
-        const imageInput = document.getElementById('memoryImageInput');
-        if (titleInput) titleInput.value = '';
-        if (descInput) descInput.value = '';
-        if (dateInput) dateInput.value = '';
-        if (imageInput) imageInput.value = '';
+        ['memoryTitleInput', 'memoryDescInput', 'memoryDateInput', 'memoryImageInput'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
     }
-}
-
-// ========================================
-// COUNTDOWN FUNCTIONALITY
-// ========================================
-
-async function loadCountdown() {
-    if (!currentCouple || !currentCouple.next_meeting_date) {
-        const infoElement = document.getElementById('nextMeetingInfo');
-        if (infoElement) {
-            infoElement.innerHTML = '<i class="fas fa-calendar-alt"></i><span>Set your next meeting date in database</span>';
-        }
-        return;
-    }
-    
-    const targetDate = new Date(currentCouple.next_meeting_date);
-    const elements = {
-        days: document.getElementById('countdownDays'),
-        hours: document.getElementById('countdownHours'),
-        minutes: document.getElementById('countdownMins'),
-        seconds: document.getElementById('countdownSecs')
-    };
-    
-    const infoElement = document.getElementById('nextMeetingInfo');
-    if (infoElement) {
-        infoElement.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>Next meeting: ${formatDate(targetDate)}</span>`;
-    }
-    
-    if (countdownInterval) clearInterval(countdownInterval);
-    
-    function update() {
-        updateCountdown(targetDate, elements);
-    }
-    
-    update();
-    countdownInterval = setInterval(update, 1000);
-}
-
-// ========================================
-// UI UPDATES
-// ========================================
-
-function updateWelcomeMessage() {
-    const userNameElement = document.getElementById('userName');
-    if (userNameElement && userProfile) {
-        const name = userProfile.full_name?.split(' ')[0] || 'Love';
-        userNameElement.textContent = name;
-    }
-}
-
-function updateRelationshipInfo() {
-    if (!currentCouple?.started_date) return;
-    
-    const durationElement = document.getElementById('relationshipDuration');
-    if (durationElement) {
-        durationElement.textContent = formatRelationshipDuration(currentCouple.started_date);
-    }
-}
-
-function updateLoveMeter() {
-    const valueElement = document.getElementById('loveMeterValue');
-    const fillElement = document.getElementById('loveMeterFill');
-    const messageElement = document.getElementById('loveMeterMessage');
-    
-    const value = getRandomLoveMeter();
-    
-    if (valueElement) valueElement.textContent = value + '%';
-    if (fillElement) fillElement.style.width = value + '%';
-    if (messageElement) messageElement.textContent = getLoveMeterMessage(value);
-}
-
-// ========================================
-// REALTIME LISTENERS
-// ========================================
-
-function setupRealtimeListeners() {
-    if (!currentCouple) return;
-    
-    // Listen for new messages
-    _supabase
-        .channel('chat-messages')
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `couple_id=eq.${currentCouple.id}`
-        }, (payload) => {
-            const newMessage = payload.new;
-            if (newMessage.sender_id !== currentUser.id) {
-                displayChatMessage(newMessage);
-                showToast('New message from your love! 💬', 'chat');
-            }
-        })
-        .subscribe();
-    
-    // Listen for pokes
-    _supabase
-        .channel('pokes')
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'pokes',
-            filter: `to_user_id=eq.${currentUser.id}`
-        }, (payload) => {
-            const poke = payload.new;
-            let message = '';
-            if (poke.type === 'poke') message = '💗 Someone poked you!';
-            else if (poke.type === 'kangen') message = '🥺 Someone misses you!';
-            else message = '💌 Someone sent you love!';
-            
-            showToast(message, 'poke');
-            createFloatingHearts(20);
-        })
-        .subscribe();
-    
-    // Listen for profile changes
-    _supabase
-        .channel('profiles')
-        .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'profiles'
-        }, async (payload) => {
-            if (payload.new.user_id === currentPartner) {
-                updatePartnerStatus(payload.new);
-            }
-        })
-        .subscribe();
-}
+};
 
 // ========================================
 // NAVIGATION
@@ -1449,31 +721,25 @@ function setupRealtimeListeners() {
 
 function setupNavigation() {
     const navBtns = document.querySelectorAll('.nav-btn');
-    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileBtn = document.getElementById('mobileMenuBtn');
     const navMenu = document.querySelector('.nav-menu');
     
     navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const section = btn.getAttribute('data-section');
-            if (section) {
-                switchSection(section);
-            }
-            
-            if (navMenu && window.innerWidth <= 768) {
-                navMenu.classList.remove('active');
-            }
+            if (section) switchSection(section);
+            if (navMenu && window.innerWidth <= 768) navMenu.classList.remove('active');
         });
     });
     
-    if (mobileMenuBtn) {
-        mobileMenuBtn.addEventListener('click', () => {
+    if (mobileBtn) {
+        mobileBtn.addEventListener('click', () => {
             if (navMenu) navMenu.classList.toggle('active');
         });
     }
 }
 
 function switchSection(section) {
-    // Update nav buttons
     document.querySelectorAll('.nav-btn').forEach(btn => {
         if (btn.getAttribute('data-section') === section) {
             btn.classList.add('active');
@@ -1482,20 +748,18 @@ function switchSection(section) {
         }
     });
     
-    // Update sections
-    if (sections) {
-        Object.keys(sections).forEach(key => {
-            if (sections[key]) {
-                if (key === section) {
-                    sections[key].classList.add('active');
-                } else {
-                    sections[key].classList.remove('active');
-                }
+    const sections = ['dashboardSection', 'chatSection', 'memoriesSection', 'lettersSection'];
+    sections.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (id === section + 'Section') {
+                el.classList.add('active');
+            } else {
+                el.classList.remove('active');
             }
-        });
-    }
+        }
+    });
     
-    // Special actions for chat section
     if (section === 'chat') {
         const container = document.getElementById('chatMessages');
         if (container) container.scrollTop = container.scrollHeight;
@@ -1503,69 +767,55 @@ function switchSection(section) {
 }
 
 // ========================================
-// EVENT LISTENERS SETUP
+// EVENT LISTENERS
 // ========================================
 
 function setupEventListeners() {
-    // Logout buttons
     const logoutBtns = document.querySelectorAll('#logoutBtn, #logoutBtnNav');
-    logoutBtns.forEach(btn => {
-        if (btn) btn.addEventListener('click', logout);
-    });
+    logoutBtns.forEach(btn => btn?.addEventListener('click', logoutUser));
     
-    // Chat send button
     const sendBtn = document.getElementById('sendChatBtn');
     if (sendBtn) sendBtn.addEventListener('click', sendMessage);
     
-    // Chat input enter key
     const chatInput = document.getElementById('chatInput');
-    if (chatInput) {
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
-    }
+    if (chatInput) chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
     
-    // Poke buttons
     document.querySelectorAll('.poke-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const pokeType = btn.getAttribute('data-poke');
-            if (pokeType) sendPoke(pokeType);
-        });
+        btn.addEventListener('click', () => sendPoke(btn.getAttribute('data-poke')));
     });
     
-    // Add memory button
     const addMemoryBtn = document.getElementById('addMemoryBtn');
-    if (addMemoryBtn) addMemoryBtn.addEventListener('click', openMemoryModal);
+    if (addMemoryBtn) addMemoryBtn.addEventListener('click', window.openMemoryModal);
     
-    // Memory form
     const memoryForm = document.getElementById('memoryForm');
-    if (memoryForm) memoryForm.addEventListener('submit', addMemory);
+    if (memoryForm) memoryForm.addEventListener('submit', window.addMemory);
     
-    // Modal close on outside click
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('active');
-            }
-        });
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('active'); });
     });
     
-    // ESC key close modal
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            document.querySelectorAll('.modal.active').forEach(modal => {
-                modal.classList.remove('active');
-            });
+            document.querySelectorAll('.modal.active').forEach(modal => modal.classList.remove('active'));
+        }
+    });
+    
+    document.addEventListener('visibilitychange', async () => {
+        if (window.appState.currentUser && window.appState.userProfile) {
+            await _supabaseClient
+                .from('profiles')
+                .update({ is_online: !document.hidden, last_seen: new Date() })
+                .eq('id', window.appState.userProfile.id);
         }
     });
 }
 
-// Make functions global for HTML onclick
-window.openLetterModal = openLetterModal;
-window.closeLetterModal = closeLetterModal;
-window.openMemoryModal = openMemoryModal;
-window.closeMemoryModal = closeMemoryModal;
-window.viewMemory = viewMemory;
-window.addMemory = addMemory;
-window.sendPoke = sendPoke;
+// ========================================
+// INITIALIZATION
+// ========================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
+    setupNavigation();
+    checkAuth();
+});

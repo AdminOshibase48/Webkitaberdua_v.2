@@ -1,94 +1,100 @@
 {
-    "name": "Our Story Together",
-    "short_name": "OurStory",
-    "description": "Private couple dashboard for LDR couples",
-    "start_url": "/index.html",
-    "display": "standalone",
-    "theme_color": "#FF6B9D",
-    "background_color": "#FFF0F6",
-    "orientation": "portrait",
-    "scope": "/",
-    "lang": "id",
-    "dir": "ltr",
-    "icons": [
+  "name": "Our Story Together",
+  "short_name": "OurStory",
+  "description": "Private couple dashboard for LDR couples",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "theme_color": "#FF6B9D",
+  "background_color": "#FFF0F6",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "id",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "assets/images/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/images/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/images/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/images/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/images/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/images/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/images/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/images/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/images/maskable-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "assets/images/screenshot-1.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Dashboard Home"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Chat",
+      "short_name": "Chat",
+      "description": "Buka chat dengan pasangan",
+      "url": "/index.html?action=chat",
+      "icons": [
         {
-            "src": "assets/images/icon-72x72.png",
-            "sizes": "72x72",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "assets/images/icon-96x96.png",
-            "sizes": "96x96",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "assets/images/icon-128x128.png",
-            "sizes": "128x128",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "assets/images/icon-144x144.png",
-            "sizes": "144x144",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "assets/images/icon-152x152.png",
-            "sizes": "152x152",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "assets/images/icon-192x192.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "assets/images/icon-384x384.png",
-            "sizes": "384x384",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "assets/images/icon-512x512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "assets/images/maskable-icon.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "maskable"
+          "src": "assets/images/shortcut-chat.png",
+          "sizes": "96x96"
         }
-    ],
-    "screenshots": [
-        {
-            "src": "assets/images/screenshot-1.png",
-            "sizes": "1080x1920",
-            "type": "image/png",
-            "form_factor": "narrow",
-            "label": "Dashboard Home"
-        }
-    ],
-    "shortcuts": [
-        {
-            "name": "Chat",
-            "short_name": "Chat",
-            "description": "Buka chat dengan pasangan",
-            "url": "/index.html?action=chat",
-            "icons": [
-                {
-                    "src": "assets/images/shortcut-chat.png",
-                    "sizes": "96x96"
-                }
-            ]
-        }
-    ],
-    "categories": ["lifestyle", "social"],
-    "display_override": ["window-controls-overlay", "standalone"]
+      ]
+    }
+  ],
+  "categories": [
+    "lifestyle",
+    "social"
+  ],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ]
 }

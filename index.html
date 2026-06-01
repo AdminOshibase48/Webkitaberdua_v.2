@@ -345,5 +345,36 @@
 <script src="assets/js/config.js"></script>
 <script src="assets/js/utils.js"></script>
 <script src="assets/js/app.js"></script>
+<script>
+// Deteksi ketika user menutup tab atau browser
+window.addEventListener('beforeunload', async function() {
+    if (window.appState && window.appState.userProfile) {
+        try {
+            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            await supabase
+                .from('profiles')
+                .update({ is_online: false, last_seen: new Date() })
+                .eq('id', window.appState.userProfile.id);
+        } catch(e) {
+            console.log('Offline update error:', e);
+        }
+    }
+});
+
+// Deteksi ketika user refresh halaman
+window.addEventListener('pagehide', async function() {
+    if (window.appState && window.appState.userProfile) {
+        try {
+            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            await supabase
+                .from('profiles')
+                .update({ is_online: false, last_seen: new Date() })
+                .eq('id', window.appState.userProfile.id);
+        } catch(e) {
+            console.log('Offline update error:', e);
+        }
+    }
+});
+</script>
 </body>
 </html>

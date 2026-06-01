@@ -144,55 +144,135 @@ async function testOneSignalNotification() {
     }
 }
 
-async function requestNotificationPermission() {
-    console.log("🔔 Meminta izin notifikasi...");
+// ========================================
+// NOTIFICATION PERMANENT (TIDAK MINTA TERUS)
+// ========================================
+
+// Cek status notifikasi yang sudah tersimpan
+async function checkNotificationStatus() {
+    // Cek apakah sudah pernah minta izin sebelumnya
+    const hasRequested = localStorage.getItem('notification_requested');
     
-    // Cek dulu apakah browser support notifikasi
-    if (!('Notification' in window)) {
-        showToast("Browser tidak support notifikasi", "error");
-        return false;
-    }
-    
-    // Cek permission
     if (Notification.permission === 'granted') {
-        showToast("✅ Notifikasi sudah aktif!", "success");
         window.appState.notificationPermission = true;
+        console.log("✅ Notifikasi sudah diizinkan (tersimpan)");
         return true;
     }
     
     if (Notification.permission === 'denied') {
-        showToast("⚠️ Izin notifikasi ditolak. Aktifkan di pengaturan browser", "error");
+        window.appState.notificationPermission = false;
+        console.log("❌ Notifikasi sudah ditolak (tersimpan)");
         return false;
     }
     
-    // Minta izin
+    // Belum pernah minta izin
+    if (!hasRequested) {
+        localStorage.setItem('notification_requested', 'true');
+        return await requestNotificationPermission();
+    }
+    
+    return false;
+}
+
+// Minta izin notifikasi (hanya sekali)
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+        console.log("Browser tidak support notifikasi");
+        return false;
+    }
+    
+    // Sudah pernah diizinkan
+    if (Notification.permission === 'granted') {
+        window.appState.notificationPermission = true;
+        showToast("✅ Notifikasi aktif! 💕", "success");
+        return true;
+    }
+    
+    // Sudah pernah ditolak
+    if (Notification.permission === 'denied') {
+        window.appState.notificationPermission = false;
+        showToast("⚠️ Notifikasi sudah ditolak. Aktifkan di pengaturan browser", "error");
+        return false;
+    }
+    
+    // Minta izin (hanya sekali seumur hidup browser)
     try {
         const permission = await Notification.requestPermission();
         
         if (permission === 'granted') {
-            showToast("✅ Notifikasi diaktifkan! 💕", "success");
             window.appState.notificationPermission = true;
+            showToast("✅ Notifikasi diaktifkan! 💕", "success");
             
-            // Test notifikasi
-            setTimeout(() => {
-                new Notification("💕 Couple Love", {
-                    body: "Notifikasi berhasil! Kamu akan mendapat notifikasi saat ada pesan.",
-                    icon: "/assets/images/icon-192x192.png"
-                });
-            }, 1000);
+            // Registrasi Service Worker
+            await registerServiceWorker();
+            
+            // Test notifikasi sekali
+            setTimeout(async () => {
+                await testNotification();
+            }, 2000);
+            
             return true;
         } else {
+            window.appState.notificationPermission = false;
             showToast("⚠️ Notifikasi tidak diizinkan", "error");
             return false;
         }
     } catch (error) {
-        console.log("Error request permission:", error);
-        showToast("Gagal mengaktifkan notifikasi", "error");
+        console.log("Error:", error);
         return false;
     }
 }
 
-// Kirim notifikasi (pakai browser notification, lebih simple)
+// Register Service Worker
+async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return false;
+    
+    try {
+        // Hapus service worker lama jika ada
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+            if (registration.active && registration.active.scriptURL.includes('service-worker.js')) {
+                console.log("Service worker sudah terdaftar");
+                return true;
+            }
+        }
+        
+        // Daftar baru
+        const registration = await navigator.serviceWorker.register('/service-worker.js');
+        console.log("✅ Service Worker registered:", registration);
+        
+        // Tunggu aktif
+        if (registration.waiting) {
+            registration.waiting.postMessage({ action: 'skipWaiting' });
+        }
+        
+        return true;
+    } catch (err) {
+        console.log("Service Worker error:", err);
+        return false;
+    }
+}
+
+// Test notifikasi (hanya untuk cek)
+async function testNotification() {
+    if (Notification.permission !== 'granted') return;
+    if (!document.hidden) return;
+    
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification("💕 Couple Love", {
+            body: "Notifikasi berhasil! Kamu akan mendapat notifikasi saat ada pesan.",
+            icon: "/assets/images/icon-192x192.png",
+            tag: "test-notification",
+            requireInteraction: false
+        });
+        console.log("✅ Test notifikasi berhasil");
+    } catch(e) {
+        console.log("Test notifikasi error:", e);
+    }
+}
+
+// Kirim notifikasi
 async function sendPushNotification(title, message) {
     // Cek izin
     if (Notification.permission !== 'granted') {
@@ -200,14 +280,16 @@ async function sendPushNotification(title, message) {
         return false;
     }
     
-    // Cek apakah tab sedang aktif (jika aktif, skip notifikasi)
+    // Jangan kirim notifikasi jika tab sedang aktif
     if (!document.hidden) {
         console.log("Tab aktif, skip notifikasi");
         return false;
     }
     
     try {
+        // Tunggu service worker ready
         const registration = await navigator.serviceWorker.ready;
+        
         await registration.showNotification(title, {
             body: message,
             icon: "/assets/images/icon-192x192.png",
@@ -228,16 +310,6 @@ async function sendPushNotification(title, message) {
         console.log("Error kirim notifikasi:", error);
         return false;
     }
-}
-
-// Test notifikasi
-async function testNotification() {
-    if (Notification.permission !== 'granted') {
-        const result = await requestNotificationPermission();
-        if (!result) return;
-    }
-    
-    await sendPushNotification("💕 Test Notifikasi", "Kalau muncul, notifikasi berhasil! 🎉");
 }
 
 // ========================================

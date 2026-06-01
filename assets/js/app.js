@@ -5,11 +5,18 @@
 // ✅ Online/Offline Status
 // ✅ Typing Indicator (Sedang mengetik...)
 // ✅ Read Receipt (✅ dan ✅✅)
-// ✅ Push Notification di HP
+// ✅ OneSignal Push Notification di HP
 // ✅ Unread Counter
 // ========================================
 
 const _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ========================================
+// ONESIGNAL CONFIGURATION
+// GANTI DENGAN DATA DARI ONESIGNAL ANDA
+// ========================================
+const ONESIGNAL_APP_ID = "YOUR_ONESIGNAL_APP_ID"; // Ganti dengan App ID dari OneSignal
+const ONESIGNAL_API_KEY = "YOUR_ONESIGNAL_REST_API_KEY"; // Ganti dengan REST API Key dari OneSignal
 
 // Global state
 window.appState = {
@@ -24,7 +31,7 @@ window.appState = {
     isTyping: false,
     unreadCount: 0,
     notificationPermission: false,
-    serviceWorkerReady: false
+    onesignalUserId: null
 };
 
 // ========================================
@@ -89,91 +96,122 @@ function createFloatingHearts(count = 10) {
 }
 
 // ========================================
-// PUSH NOTIFICATION
+// ONESIGNAL PUSH NOTIFICATION
 // ========================================
 
-async function requestNotificationPermission() {
-    if (!('Notification' in window)) {
-        console.log('Browser tidak support notifikasi');
+// Kirim notifikasi ke HP via OneSignal
+async function sendOneSignalNotification(title, message, userId = null) {
+    console.log("📤 Mengirim notifikasi OneSignal...");
+    
+    // Cek apakah OneSignal sudah siap
+    if (!window.OneSignal) {
+        console.log("OneSignal belum siap, skip notifikasi");
         return false;
     }
     
-    if (Notification.permission === 'granted') {
-        console.log('✅ Notifikasi sudah diizinkan');
-        window.appState.notificationPermission = true;
-        await registerServiceWorker();
-        return true;
+    const body = {
+        app_id: ONESIGNAL_APP_ID,
+        headings: { en: title },
+        contents: { en: message.length > 100 ? message.substring(0, 100) + '...' : message },
+        included_segments: ["All"],
+        android_channel_id: "fcm_channel",
+        small_icon: "ic_stat_onesignal_default",
+        large_icon: "https://couple-love.netlify.app/assets/images/icon-192x192.png",
+        url: window.location.origin + "/index.html?action=chat",
+        ttl: 3600 // Notifikasi expire setelah 1 jam
+    };
+    
+    // Jika target user spesifik (kirim ke user tertentu)
+    if (userId) {
+        body.include_external_user_ids = [userId];
     }
     
-    if (Notification.permission !== 'denied') {
-        const permission = await Notification.requestPermission();
-        window.appState.notificationPermission = permission === 'granted';
+    try {
+        const response = await fetch("https://onesignal.com/api/v1/notifications", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Basic ${ONESIGNAL_API_KEY}`
+            },
+            body: JSON.stringify(body)
+        });
         
-        if (permission === 'granted') {
-            console.log('✅ Notifikasi diizinkan');
-            await registerServiceWorker();
-            showToast('✅ Notifikasi diaktifkan!', 'success');
-            setTimeout(() => testNotification(), 1000);
+        const result = await response.json();
+        
+        if (response.ok) {
+            console.log("✅ OneSignal notifikasi terkirim:", result);
             return true;
         } else {
-            showToast('⚠️ Aktifkan notifikasi di pengaturan browser', 'error');
+            console.log("❌ OneSignal error:", result);
             return false;
         }
-    }
-    return false;
-}
-
-async function registerServiceWorker() {
-    if (!('serviceWorker' in navigator)) return false;
-    
-    try {
-        const registration = await navigator.serviceWorker.register('/service-worker.js');
-        console.log('✅ Service Worker registered:', registration);
-        window.appState.serviceWorkerReady = true;
-        return true;
-    } catch (err) {
-        console.log('Service Worker error:', err);
+    } catch (error) {
+        console.log("❌ OneSignal fetch error:", error);
         return false;
     }
 }
 
-async function testNotification() {
-    if (Notification.permission !== 'granted') return;
-    
-    try {
-        const registration = await navigator.serviceWorker.ready;
-        await registration.showNotification('💕 Couple Love', {
-            body: 'Notifikasi berhasil! Kamu akan mendapat notifikasi saat ada pesan.',
-            icon: '/assets/images/icon-192x192.png',
-            badge: '/assets/images/badge-icon.png',
-            tag: 'test-notification',
-            requireInteraction: true,
-            vibrate: [200, 100, 200]
+// Inisialisasi OneSignal
+async function initOneSignal() {
+    if (!window.OneSignal) {
+        console.log("OneSignal SDK belum load, tunggu...");
+        // Tunggu OneSignal ready
+        return new Promise((resolve) => {
+            const checkInterval = setInterval(() => {
+                if (window.OneSignal) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 500);
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                resolve();
+            }, 10000);
         });
-        console.log('✅ Test notifikasi terkirim');
-    } catch (err) {
-        console.log('Test notifikasi error:', err);
     }
+    
+    console.log("✅ OneSignal SDK siap");
+    
+    // Dapatkan user ID OneSignal
+    try {
+        const userId = await window.OneSignal.getExternalUserId();
+        if (userId) {
+            window.appState.onesignalUserId = userId;
+            console.log("OneSignal User ID:", userId);
+            
+            // Simpan ke Supabase
+            if (window.appState.userProfile) {
+                await _supabaseClient
+                    .from('profiles')
+                    .update({ onesignal_id: userId })
+                    .eq('id', window.appState.userProfile.id);
+            }
+        }
+    } catch(e) {
+        console.log("Get OneSignal ID error:", e);
+    }
+    
+    return true;
 }
 
-async function showIncomingMessageNotification(senderName, message) {
-    if (Notification.permission !== 'granted') return;
-    if (!document.hidden) return;
+// Request notifikasi permission via OneSignal
+async function requestOneSignalPermission() {
+    if (!window.OneSignal) {
+        console.log("OneSignal belum siap");
+        return false;
+    }
     
     try {
-        const registration = await navigator.serviceWorker.ready;
-        await registration.showNotification(`💬 Pesan dari ${senderName}`, {
-            body: message.length > 100 ? message.substring(0, 100) + '...' : message,
-            icon: '/assets/images/icon-192x192.png',
-            badge: '/assets/images/badge-icon.png',
-            tag: 'new-message',
-            vibrate: [200, 100, 200],
-            requireInteraction: true,
-            data: { url: '/index.html?action=chat' },
-            actions: [{ action: 'open', title: '💬 Buka Chat' }]
-        });
-    } catch (err) {
-        console.log('Notifikasi error:', err);
+        const isSubscribed = await window.OneSignal.isPushNotificationsEnabled();
+        if (!isSubscribed) {
+            await window.OneSignal.registerForPushNotifications();
+        }
+        window.appState.notificationPermission = true;
+        showToast("✅ Notifikasi HP diaktifkan! 💕", "success");
+        return true;
+    } catch(e) {
+        console.log("Request permission error:", e);
+        return false;
     }
 }
 
@@ -253,7 +291,7 @@ async function checkAuth() {
             if (dashboard) dashboard.style.display = 'block';
             if (loading) loading.classList.add('hidden');
             
-            await requestNotificationPermission();
+            await initOneSignal();
             await initializeDashboard();
             setupRealtimeListeners();
             setupTypingListener();
@@ -316,6 +354,14 @@ async function initializeDashboard() {
         if (quoteEl) quoteEl.textContent = `"${getRandomLoveQuote()}"`;
         
         setInterval(() => createFloatingHearts(3), 8000);
+        
+        // Minta izin notifikasi OneSignal (opsional, bisa juga dari tombol)
+        setTimeout(() => {
+            if (confirm("Aktifkan notifikasi ke HP? Kamu akan mendapat notifikasi saat ada pesan 💕")) {
+                requestOneSignalPermission();
+            }
+        }, 3000);
+        
     } catch (error) {
         console.error('Init error:', error);
     }
@@ -338,7 +384,8 @@ async function loadUserProfile() {
                     mood_emoji: '😊',
                     status_text: 'Happy',
                     is_online: true,
-                    last_seen: new Date()
+                    last_seen: new Date(),
+                    onesignal_id: window.appState.onesignalUserId
                 })
                 .select()
                 .single();
@@ -807,7 +854,7 @@ function setupRealtimeListeners() {
         _supabaseClient.removeChannel('profiles-online');
     } catch(e) {}
     
-    // 1. LISTENER PESAN BARU
+    // 1. LISTENER PESAN BARU (DENGAN ONESIGNAL NOTIFICATION)
     _supabaseClient
         .channel('chat-messages')
         .on('postgres_changes', {
@@ -821,13 +868,24 @@ function setupRealtimeListeners() {
             if (newMsg.sender_id !== window.appState.currentUser.id) {
                 console.log('📩 Pesan masuk dari pasangan');
                 
+                // Tampilkan pesan di chat
                 displayChatMessage(newMsg);
                 playNotificationSound();
                 
                 const senderName = window.appState.partnerProfile?.full_name || 'Pasangan';
-                await showIncomingMessageNotification(senderName, newMsg.message);
+                const messageText = newMsg.message;
+                
+                // Tampilkan toast
                 showToast(`💬 Pesan dari ${senderName}`, 'chat');
                 
+                // KIRIM NOTIFIKASI KE HP VIA ONESIGNAL
+                await sendOneSignalNotification(
+                    `💬 Pesan dari ${senderName}`,
+                    messageText,
+                    window.appState.partnerProfile?.onesignal_id || null
+                );
+                
+                // Tandai sebagai sudah dibaca
                 await markMessageAsRead(newMsg.id);
                 await loadUnreadMessagesCount();
                 refreshChatMessages();
@@ -867,7 +925,7 @@ function setupRealtimeListeners() {
             schema: 'public',
             table: 'pokes',
             filter: `to_user_id=eq.${window.appState.currentUser.id}`
-        }, (payload) => {
+        }, async (payload) => {
             const poke = payload.new;
             let message = '';
             if (poke.type === 'poke') message = '💗 Ada yang POKE kamu!';
@@ -877,6 +935,13 @@ function setupRealtimeListeners() {
             showToast(message, 'poke');
             createFloatingHearts(20);
             playNotificationSound();
+            
+            // Notifikasi OneSignal untuk poke
+            await sendOneSignalNotification(
+                '💗 Love Notification',
+                message,
+                window.appState.partnerProfile?.onesignal_id || null
+            );
         })
         .subscribe();
     

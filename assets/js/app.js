@@ -1,15 +1,17 @@
 // ========================================
-// COUPLE DASHBOARD - FIXED VERSION
+// COUPLE DASHBOARD - FINAL VERSION
 // FITUR: Chat Realtime, Online/Offline, Typing, Read Receipt, OneSignal
 // ========================================
 
 const _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Simpan ke window untuk akses global
+window._supabaseClient = _supabaseClient;
+
 // ========================================
 // ONESIGNAL CONFIGURATION
 // ========================================
 const ONESIGNAL_APP_ID = "db3840ed-d597-4e66-9d22-f69e547d464f";
-const ONESIGNAL_API_KEY = "os_v2_app_3m4eb3ovs5hgnhjc62pfi7kgj5dlpsfgwi2ebhu7mqpypc3jndbzbec3hozl64fvfhb2l3lr2pgip5sqggcm43okyioqr4c6aurmdyy"; // Ganti dengan REST API Key
 
 // Global state
 window.appState = {
@@ -89,30 +91,25 @@ function createFloatingHearts(count = 10) {
 }
 
 // ========================================
-// ONESIGNAL PUSH NOTIFICATION (FIXED)
+// ONESIGNAL PUSH NOTIFICATION (TETAP SAMA)
 // ========================================
 
-// Cek OneSignal ready dengan lebih baik
 function isOneSignalReady() {
     return window.OneSignal && window.OneSignal.User && window.OneSignal.User.PushSubscription;
 }
 
-// Kirim notifikasi via OneSignal
 async function sendOneSignalNotification(title, message) {
-    // Skip jika OneSignal belum siap
     if (!isOneSignalReady()) {
         console.log("⏳ OneSignal belum siap, skip notifikasi");
         return false;
     }
     
-    // Skip jika tab sedang aktif
     if (!document.hidden) {
         console.log("📱 Tab aktif, skip notifikasi");
         return false;
     }
     
     try {
-        // Gunakan OneSignal langsung tanpa API call (lebih cepat)
         await window.OneSignal.Notifications.addNotification({
             title: title,
             message: message,
@@ -127,7 +124,6 @@ async function sendOneSignalNotification(title, message) {
     }
 }
 
-// Test notifikasi OneSignal
 async function testOneSignalNotification() {
     if (!isOneSignalReady()) {
         console.log("OneSignal belum siap untuk test");
@@ -148,7 +144,6 @@ async function testOneSignalNotification() {
     }
 }
 
-// Request izin notifikasi
 async function requestNotificationPermission() {
     if (!window.OneSignal) {
         console.log("OneSignal SDK belum load");
@@ -157,15 +152,12 @@ async function requestNotificationPermission() {
     }
     
     try {
-        // Cek apakah sudah subscribe
         const isSubscribed = await window.OneSignal.User.PushSubscription.getOptedIn();
         
         if (!isSubscribed) {
             await window.OneSignal.User.PushSubscription.optIn();
             window.appState.notificationPermission = true;
             showToast("✅ Notifikasi HP diaktifkan! 💕", "success");
-            
-            // Test notifikasi setelah aktif
             setTimeout(() => testOneSignalNotification(), 2000);
             return true;
         } else {
@@ -251,9 +243,12 @@ async function checkAuth() {
         const { data: { session } } = await _supabaseClient.auth.getSession();
         
         if (session) {
+            console.log("✅ User session ditemukan:", session.user.email);
             window.appState.currentUser = session.user;
+            
             const dashboard = document.getElementById('dashboardContainer');
             const loading = document.getElementById('loadingScreen');
+            
             if (dashboard) dashboard.style.display = 'block';
             if (loading) loading.classList.add('hidden');
             
@@ -261,7 +256,17 @@ async function checkAuth() {
             setupRealtimeListeners();
             setupTypingListener();
             startHeartbeat();
+            
+            // Update status online setelah login
+            if (window.appState.userProfile) {
+                await _supabaseClient
+                    .from('profiles')
+                    .update({ is_online: true, last_seen: new Date() })
+                    .eq('id', window.appState.userProfile.id);
+                console.log("✅ Status online setelah login");
+            }
         } else {
+            console.log("❌ Tidak ada session, redirect ke login");
             window.location.href = 'login.html';
         }
     } catch (error) {
@@ -271,36 +276,73 @@ async function checkAuth() {
 }
 
 async function logoutUser() {
-    // Update status offline sebelum logout
+    console.log("🚪 Logout user...");
+    
+    // Update status offline SEKARANG
     if (window.appState.userProfile) {
-        await _supabaseClient
-            .from('profiles')
-            .update({ is_online: false, last_seen: new Date() })
-            .eq('id', window.appState.userProfile.id);
+        try {
+            await _supabaseClient
+                .from('profiles')
+                .update({ is_online: false, last_seen: new Date() })
+                .eq('id', window.appState.userProfile.id);
+            console.log("✅ Status offline diupdate saat logout");
+        } catch(e) {
+            console.log("Logout offline update error:", e);
+        }
     }
     
-    // Hentikan heartbeat
+    // Hentikan semua interval
     if (window.appState.heartbeatInterval) {
         clearInterval(window.appState.heartbeatInterval);
         window.appState.heartbeatInterval = null;
     }
     
+    if (window.appState.countdownInterval) {
+        clearInterval(window.appState.countdownInterval);
+        window.appState.countdownInterval = null;
+    }
+    
+    // Logout dari Supabase
     await _supabaseClient.auth.signOut();
+    
+    // Reset state
+    window.appState.currentUser = null;
+    window.appState.userProfile = null;
+    window.appState.currentCouple = null;
+    window.appState.currentPartner = null;
+    
+    // Redirect ke login
     window.location.href = 'login.html';
 }
 
 function startHeartbeat() {
+    // Hentikan heartbeat lama
     if (window.appState.heartbeatInterval) {
         clearInterval(window.appState.heartbeatInterval);
+        window.appState.heartbeatInterval = null;
     }
     
-    // Hanya jalan jika user login
+    // Cek apakah user login
     if (!window.appState.currentUser || !window.appState.userProfile) {
+        console.log("Heartbeat: User tidak login, skip");
         return;
     }
     
+    console.log("❤️ Heartbeat started - akan update online status setiap 30 detik");
+    
+    // Update online status pertama kali
+    _supabaseClient
+        .from('profiles')
+        .update({ is_online: true, last_seen: new Date() })
+        .eq('id', window.appState.userProfile.id)
+        .then(() => console.log("✅ Initial online status updated"))
+        .catch(e => console.log("Initial online update error:", e));
+    
+    // Set interval heartbeat
     window.appState.heartbeatInterval = setInterval(async () => {
+        // Cek apakah user masih login
         if (!window.appState.currentUser || !window.appState.userProfile) {
+            console.log("Heartbeat: User sudah logout, stop heartbeat");
             if (window.appState.heartbeatInterval) {
                 clearInterval(window.appState.heartbeatInterval);
                 window.appState.heartbeatInterval = null;
@@ -309,10 +351,14 @@ function startHeartbeat() {
         }
         
         try {
-            await _supabaseClient
-                .from('profiles')
-                .update({ is_online: true, last_seen: new Date() })
-                .eq('id', window.appState.userProfile.id);
+            // Cek apakah tab sedang aktif
+            if (!document.hidden) {
+                await _supabaseClient
+                    .from('profiles')
+                    .update({ is_online: true, last_seen: new Date() })
+                    .eq('id', window.appState.userProfile.id);
+                console.log("❤️ Heartbeat: status online updated");
+            }
         } catch(e) {
             console.log("Heartbeat error:", e);
         }
@@ -346,7 +392,7 @@ async function initializeDashboard() {
         
         setInterval(() => createFloatingHearts(3), 8000);
         
-        // Tawarkan notifikasi setelah dashboard siap (delay lebih pendek)
+        // Tawarkan notifikasi setelah dashboard siap
         setTimeout(() => {
             if (window.OneSignal && !window.appState.notificationPermission) {
                 const enableNotif = confirm("🔔 Aktifkan notifikasi ke HP?\n\nKamu akan mendapat notifikasi saat ada pesan dari pasangan! 💕");
@@ -867,7 +913,6 @@ function setupRealtimeListeners() {
                 const senderName = window.appState.partnerProfile?.full_name || 'Pasangan';
                 showToast(`💬 Pesan dari ${senderName}`, 'chat');
                 
-                // Kirim notifikasi OneSignal jika HP dalam keadaan sleep/tidak aktif
                 if (document.hidden) {
                     await sendOneSignalNotification(
                         `💬 Pesan dari ${senderName}`,
@@ -1103,26 +1148,26 @@ function setupEventListeners() {
         }
     });
     
+    // VISIBILITY CHANGE - Update status saat tab di minimize/aktif
     document.addEventListener('visibilitychange', async () => {
         if (window.appState.currentUser && window.appState.userProfile) {
-            await _supabaseClient
-                .from('profiles')
-                .update({ is_online: !document.hidden, last_seen: new Date() })
-                .eq('id', window.appState.userProfile.id);
-            
-            if (!document.hidden && window.appState.unreadCount > 0) {
-                markAllMessagesAsRead();
+            if (document.hidden) {
+                console.log("📱 Tab di-minimize, update status offline...");
+                await _supabaseClient
+                    .from('profiles')
+                    .update({ is_online: false, last_seen: new Date() })
+                    .eq('id', window.appState.userProfile.id);
+            } else {
+                console.log("📱 Tab aktif kembali, update status online...");
+                await _supabaseClient
+                    .from('profiles')
+                    .update({ is_online: true, last_seen: new Date() })
+                    .eq('id', window.appState.userProfile.id);
+                
+                if (window.appState.unreadCount > 0) {
+                    markAllMessagesAsRead();
+                }
             }
-        }
-    });
-    
-    // Deteksi ketika user menutup tab
-    window.addEventListener('beforeunload', async () => {
-        if (window.appState.userProfile) {
-            await _supabaseClient
-                .from('profiles')
-                .update({ is_online: false, last_seen: new Date() })
-                .eq('id', window.appState.userProfile.id);
         }
     });
 }

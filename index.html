@@ -15,18 +15,29 @@
     <link rel="shortcut icon" href="assets/images/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/images/apple-touch-icon.png">
 
-    <!-- OneSignal SDK - Letakkan di bagian head -->
+<!-- OneSignal SDK -->
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     OneSignalDeferred.push(function(OneSignal) {
         OneSignal.init({
-            appId: "db3840ed-d597-4e66-9d22-f69e547d464f", // Ganti dengan App ID Anda
-            safari_web_id: "",
+            appId: "db3840ed-d597-4e66-9d22-f69e547d464f", // Ganti dengan App ID
             notifyButton: {
-                enable: true,
+                enable: true, // Menampilkan tombol notifikasi
             },
             allowLocalhostAsSecureOrigin: true,
+        });
+        
+        // Notifikasi sukses terdaftar
+        OneSignal.on('subscriptionChange', function(isSubscribed) {
+            if (isSubscribed) {
+                console.log("✅ User berlangganan notifikasi");
+                // Dapatkan user ID OneSignal
+                OneSignal.getExternalUserId().then(userId => {
+                    console.log("User ID:", userId);
+                    // Simpan ke database jika perlu
+                });
+            }
         });
     });
 </script>

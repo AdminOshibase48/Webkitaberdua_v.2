@@ -1343,3 +1343,25 @@ body.login-body {
 .nav-btn {
     position: relative;
 }
+
+/* Badge untuk notifikasi */
+.nav-btn {
+    position: relative;
+}
+
+.unread-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #FF6B9D;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}

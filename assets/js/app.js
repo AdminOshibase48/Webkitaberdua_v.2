@@ -15,8 +15,8 @@ const _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON
 // ONESIGNAL CONFIGURATION
 // GANTI DENGAN DATA DARI ONESIGNAL ANDA
 // ========================================
-const ONESIGNAL_APP_ID = "YOUR_ONESIGNAL_APP_ID"; // Ganti dengan App ID dari OneSignal
-const ONESIGNAL_API_KEY = "YOUR_ONESIGNAL_REST_API_KEY"; // Ganti dengan REST API Key dari OneSignal
+const ONESIGNAL_APP_ID = "db3840ed-d597-4e66-9d22-f69e547d464f"; // Ganti dengan App ID dari OneSignal
+const ONESIGNAL_API_KEY = "os_v2_app_3m4eb3ovs5hgnhjc62pfi7kgj5dlpsfgwi2ebhu7mqpypc3jndbzbec3hozl64fvfhb2l3lr2pgip5sqggcm43okyioqr4c6aurmdyy"; // Ganti dengan REST API Key dari OneSignal
 
 // Global state
 window.appState = {

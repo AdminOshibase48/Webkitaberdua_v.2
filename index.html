@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Couple Dashboard | Our Love Story</title>
+    <meta name="description" content="Private couple dashboard for LDR couples">
+    <meta name="theme-color" content="#FF6B9D">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CoupleLove">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="assets/images/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg">
+    <link rel="shortcut icon" href="assets/images/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/images/apple-touch-icon.png">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Main Styles -->
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<!-- Floating Hearts Container -->
+<div class="floating-hearts-container" id="floatingHearts"></div>
+
+<!-- Toast Container -->
+<div id="toastContainer"></div>
+
+<!-- Loading Screen -->
+<div class="loading-screen" id="loadingScreen">
+    <div class="loading-content">
+        <div class="loading-hearts">
+            <i class="fas fa-heart"></i>
+            <i class="fas fa-heart"></i>
+            <i class="fas fa-heart"></i>
+        </div>
+        <div class="loading-text">Loading our love story...</div>
+        <div class="loading-bar">
+            <div class="loading-progress"></div>
+        </div>
+    </div>
+</div>
+
+<!-- DASHBOARD CONTAINER -->
+<div class="dashboard" id="dashboardContainer">
+    <!-- Glass Navigation -->
+    <nav class="glass-nav">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-heart"></i>
+                <span>CoupleLove</span>
+            </div>
+            <div class="nav-menu">
+                <button class="nav-btn active" data-section="dashboard">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </button>
+                <button class="nav-btn" data-section="chat">
+                    <i class="fas fa-comment-dots"></i>
+                    <span>Chat</span>
+                </button>
+                <button class="nav-btn" data-section="memories">
+                    <i class="fas fa-images"></i>
+                    <span>Memories</span>
+                </button>
+                <button class="nav-btn" data-section="letters">
+                    <i class="fas fa-envelope-open-text"></i>
+                    <span>Letters</span>
+                </button>
+                <button class="logout-btn-nav" id="logoutBtnNav">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Section -->
+        <div class="section-content active" id="dashboardSection">
+            <div class="welcome-banner">
+                <h1 class="welcome-title">Hello, <span id="userName">Love</span>! 💕</h1>
+                <p class="welcome-date" id="currentDate"></p>
+            </div>
+            
+            <div class="bento-grid">
+                <!-- Widget 1: Couple Header (Large) -->
+                <div class="widget widget-large">
+                    <div class="widget-header">
+                        <div class="widget-title"><i class="fas fa-user-friends"></i> Our Story</div>
+                        <div class="widget-actions">
+                            <i class="fas fa-ellipsis-h"></i>
+                        </div>
+                    </div>
+                    <div class="couple-header">
+                        <div class="couple-avatars">
+                            <div class="avatar" id="avatarHim">
+                                <i class="fas fa-user-astronaut"></i>
+                            </div>
+                            <div class="avatar" id="avatarHer">
+                                <i class="fas fa-user-nurse"></i>
+                            </div>
+                        </div>
+                        <div class="couple-info">
+                            <div class="couple-names" id="coupleNames">💙 Nursyam & Lulu 💗</div>
+                            <div class="couple-duration" id="relationshipDuration">Together for...</div>
+                            <div class="couple-quote" id="coupleQuote">"Love is in the air"</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Widget 2: Realtime Status -->
+                <div class="widget">
+                    <div class="widget-header">
+                        <div class="widget-title"><i class="fas fa-smile-wink"></i> Partner's Status</div>
+                    </div>
+                    <div class="status-container" id="partnerStatus">
+                        <div class="status-avatar">
+                            <div class="avatar-small" id="partnerAvatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <span class="online-indicator" id="onlineIndicator"></span>
+                        </div>
+                        <div class="status-details">
+                            <div class="status-mood" id="partnerMood">😊</div>
+                            <div class="status-text" id="partnerStatusText">Happy</div>
+                            <div class="status-location" id="partnerLocation">📍 Online</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Widget 3: Virtual Poke -->
+                <div class="widget">
+                    <div class="widget-header">
+                        <div class="widget-title"><i class="fas fa-hand-peace"></i> Send Love</div>
+                    </div>
+                    <div class="poke-buttons">
+                        <button class="poke-btn" data-poke="poke">
+                            <i class="fas fa-hand-peace"></i>
+                            <span>Poke</span>
+                        </button>
+                        <button class="poke-btn" data-poke="kangen">
+                            <i class="fas fa-heart"></i>
+                            <span>Kangen</span>
+                        </button>
+                        <button class="poke-btn" data-poke="miss_you">
+                            <i class="fas fa-envelope-heart"></i>
+                            <span>Miss You</span>
+                        </button>
+                    </div>
+                    <div class="recent-pokes" id="recentPokes">
+                        <p class="recent-text">💗 Send a poke to show your love!</p>
+                    </div>
+                </div>
+                
+                <!-- Widget 4: Countdown -->
+                <div class="widget">
+                    <div class="widget-header">
+                        <div class="widget-title"><i class="fas fa-calendar-heart"></i> Next Meeting</div>
+                    </div>
+                    <div class="countdown-container">
+                        <div class="countdown-display" id="countdownDisplay">
+                            <div class="countdown-item">
+                                <div class="countdown-number" id="countdownDays">00</div>
+                                <div class="countdown-label">Days</div>
+                            </div>
+                            <div class="countdown-item">
+                                <div class="countdown-number" id="countdownHours">00</div>
+                                <div class="countdown-label">Hours</div>
+                            </div>
+                            <div class="countdown-item">
+                                <div class="countdown-number" id="countdownMins">00</div>
+                                <div class="countdown-label">Mins</div>
+                            </div>
+                            <div class="countdown-item">
+                                <div class="countdown-number" id="countdownSecs">00</div>
+                                <div class="countdown-label">Secs</div>
+                            </div>
+                        </div>
+                        <div class="next-meeting-info" id="nextMeetingInfo">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>Waiting for next meeting date...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Widget 5: Love Meter -->
+                <div class="widget">
+                    <div class="widget-header">
+                        <div class="widget-title"><i class="fas fa-heartbeat"></i> Love Meter</div>
+                    </div>
+                    <div class="love-meter-container">
+                        <div class="love-meter-value" id="loveMeterValue">98%</div>
+                        <div class="love-meter-bar">
+                            <div class="love-meter-fill" id="loveMeterFill" style="width: 98%"></div>
+                        </div>
+                        <p class="love-meter-message" id="loveMeterMessage">You two are inseparable! ❤️</p>
+                    </div>
+                </div>
+                
+                <!-- Widget 6: Memory of the Day -->
+                <div class="widget">
+                    <div class="widget-header">
+                        <div class="widget-title"><i class="fas fa-star"></i> Memory of the Day</div>
+                    </div>
+                    <div class="memory-card" id="memoryOfDay">
+                        <div class="memory-icon">
+                            <i class="fas fa-camera-retro"></i>
+                        </div>
+                        <div class="memory-content">
+                            <h4 id="memoryTitle">First Meeting</h4>
+                            <p id="memoryDesc">The day our eyes met for the first time...</p>
+                            <span class="memory-date" id="memoryDate">December 17, 2025</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="section-content" id="chatSection">
+            <div class="chat-container">
+                <div class="chat-header">
+                    <div class="partner-info">
+                        <div class="partner-avatar-mini" id="chatPartnerAvatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="partner-details">
+                            <h3 id="chatPartnerName">My Love</h3>
+                            <span class="typing-status" id="typingStatus">Online</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    <!-- Messages will appear here -->
+                </div>
+                <div class="chat-input-container">
+                    <div class="chat-input-wrapper">
+                        <input type="text" class="chat-input" id="chatInput" placeholder="Type your message...">
+                        <button class="emoji-btn" id="emojiBtn">
+                            <i class="far fa-smile-wink"></i>
+                        </button>
+                    </div>
+                    <button class="chat-send" id="sendChatBtn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memories Section -->
+        <div class="section-content" id="memoriesSection">
+            <div class="memories-header">
+                <h2><i class="fas fa-images"></i> Our Gallery</h2>
+                <button class="add-memory-btn" id="addMemoryBtn">
+                    <i class="fas fa-plus"></i> Add Memory
+                </button>
+            </div>
+            <div class="gallery-grid" id="galleryGrid">
+                <!-- Gallery items will be loaded here -->
+                <div class="gallery-item">
+                    <div class="gallery-placeholder">
+                        <i class="fas fa-heart"></i>
+                        <p>Upload your first memory!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Letters Section -->
+        <div class="section-content" id="lettersSection">
+            <div class="letters-header">
+                <h2><i class="fas fa-envelope-open-text"></i> Open When Letters</h2>
+            </div>
+            <div class="letters-grid" id="lettersGrid">
+                <!-- Letters will be loaded here -->
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Letter Modal -->
+<div class="modal" id="letterModal">
+    <div class="modal-content">
+        <button class="modal-close-btn" onclick="closeLetterModal()">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="modal-icon">
+            <i class="fas fa-envelope-open-heart"></i>
+        </div>
+        <h3 id="modalTitle">💌 Open When...</h3>
+        <div class="modal-body" id="modalContent">
+            Your special message appears here...
+        </div>
+        <button class="modal-close" onclick="closeLetterModal()">Close</button>
+    </div>
+</div>
+
+<!-- Add Memory Modal -->
+<div class="modal" id="memoryModal">
+    <div class="modal-content">
+        <button class="modal-close-btn" onclick="closeMemoryModal()">
+            <i class="fas fa-times"></i>
+        </button>
+        <h3><i class="fas fa-camera"></i> Add New Memory</h3>
+        <form id="memoryForm">
+            <input type="text" id="memoryTitleInput" placeholder="Memory title" required>
+            <textarea id="memoryDescInput" placeholder="Memory description" rows="3" required></textarea>
+            <input type="date" id="memoryDateInput" required>
+            <input type="url" id="memoryImageInput" placeholder="Image URL (optional)">
+            <button type="submit" class="submit-btn">
+                <i class="fas fa-save"></i> Save Memory
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

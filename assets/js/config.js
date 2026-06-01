@@ -17,7 +17,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_x4DgVk7DLG_gjWK2iS3q2Q_ShRK3kAE";     
 const COUPLE_CONFIG = {
     // Data Partner 1 (Anda)
     partner1: {
-        id: "",  // Akan diisi otomatis dari database
+        id: "",
         name: "Nursyam",
         avatar: "assets/images/avatar-him.jpg",
         color: "#FF6B9D",
@@ -26,7 +26,7 @@ const COUPLE_CONFIG = {
     },
     // Data Partner 2 (Pasangan)
     partner2: {
-        id: "",  // Akan diisi otomatis dari database
+        id: "",
         name: "Lulu",
         avatar: "assets/images/avatar-her.jpg",
         color: "#C4B5FD",
@@ -41,7 +41,7 @@ const COUPLE_CONFIG = {
 const APP_CONFIG = {
     name: "Couple Love Dashboard",
     version: "1.0.0",
-    debug: true,  // Set ke false di production
+    debug: true,
     defaultLoveMeter: 98,
     floatingHeartsInterval: 3000,
     toastDuration: 3000,
@@ -50,7 +50,7 @@ const APP_CONFIG = {
 };
 
 // ========================================
-// LOVE NOTES / LETTERS DATA (Default)
+// DEFAULT LETTERS
 // ========================================
 const DEFAULT_LETTERS = [
     {
@@ -92,7 +92,7 @@ const DEFAULT_LETTERS = [
 ];
 
 // ========================================
-// MEMORIES DATA (Default)
+// DEFAULT MEMORIES
 // ========================================
 const DEFAULT_MEMORIES = [
     {
@@ -114,8 +114,3 @@ const DEFAULT_MEMORIES = [
         imageUrl: null
     }
 ];
-
-// Export untuk digunakan di file lain
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { SUPABASE_URL, SUPABASE_ANON_KEY, COUPLE_CONFIG, APP_CONFIG, DEFAULT_LETTERS, DEFAULT_MEMORIES };
-}

@@ -1,6 +1,6 @@
 {
-    "name": "OurStoryTogether",
-    "short_name": "OurStoryTogether",
+    "name": "Our Story Together",
+    "short_name": "OurStory",
     "description": "Private couple dashboard for LDR couples",
     "start_url": "/index.html",
     "display": "standalone",
@@ -72,7 +72,7 @@
             "sizes": "1080x1920",
             "type": "image/png",
             "form_factor": "narrow",
-            "label": "Dashboard"
+            "label": "Dashboard Home"
         }
     ],
     "shortcuts": [

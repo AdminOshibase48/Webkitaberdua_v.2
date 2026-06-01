@@ -1,6 +1,12 @@
 // ========================================
-// COUPLE DASHBOARD - FULL VERSION
-// CHAT LIKE WA + PUSH NOTIFICATION + READ RECEIPT
+// COUPLE DASHBOARD - FINAL VERSION
+// FITUR LENGKAP:
+// ✅ Chat Realtime seperti WA
+// ✅ Online/Offline Status
+// ✅ Typing Indicator (Sedang mengetik...)
+// ✅ Read Receipt (✅ dan ✅✅)
+// ✅ Push Notification di HP
+// ✅ Unread Counter
 // ========================================
 
 const _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -83,63 +89,91 @@ function createFloatingHearts(count = 10) {
 }
 
 // ========================================
-// PUSH NOTIFICATION SETUP
+// PUSH NOTIFICATION
 // ========================================
 
-async function setupPushNotifications() {
+async function requestNotificationPermission() {
     if (!('Notification' in window)) {
         console.log('Browser tidak support notifikasi');
-        return;
+        return false;
     }
     
     if (Notification.permission === 'granted') {
+        console.log('✅ Notifikasi sudah diizinkan');
         window.appState.notificationPermission = true;
-        registerServiceWorker();
-    } else if (Notification.permission !== 'denied') {
+        await registerServiceWorker();
+        return true;
+    }
+    
+    if (Notification.permission !== 'denied') {
         const permission = await Notification.requestPermission();
         window.appState.notificationPermission = permission === 'granted';
+        
         if (permission === 'granted') {
-            registerServiceWorker();
-            showToast('Notifikasi diaktifkan! 💕', 'success');
+            console.log('✅ Notifikasi diizinkan');
+            await registerServiceWorker();
+            showToast('✅ Notifikasi diaktifkan!', 'success');
+            setTimeout(() => testNotification(), 1000);
+            return true;
+        } else {
+            showToast('⚠️ Aktifkan notifikasi di pengaturan browser', 'error');
+            return false;
         }
     }
+    return false;
 }
 
 async function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        try {
-            const registration = await navigator.serviceWorker.register('/service-worker.js');
-            window.appState.serviceWorkerReady = true;
-            console.log('Service Worker registered');
-        } catch (err) {
-            console.log('Service Worker error:', err);
-        }
+    if (!('serviceWorker' in navigator)) return false;
+    
+    try {
+        const registration = await navigator.serviceWorker.register('/service-worker.js');
+        console.log('✅ Service Worker registered:', registration);
+        window.appState.serviceWorkerReady = true;
+        return true;
+    } catch (err) {
+        console.log('Service Worker error:', err);
+        return false;
     }
 }
 
-async function sendPushNotificationToPartner(title, body, messageId) {
+async function testNotification() {
+    if (Notification.permission !== 'granted') return;
+    
     try {
-        if (window.appState.serviceWorkerReady) {
-            const registration = await navigator.serviceWorker.ready;
-            await registration.showNotification(title, {
-                body: body,
-                icon: '/assets/images/icon-192x192.png',
-                badge: '/assets/images/badge-icon.png',
-                tag: 'couple-message',
-                vibrate: [200, 100, 200],
-                data: {
-                    messageId: messageId,
-                    senderId: window.appState.currentUser.id,
-                    url: '/index.html?action=chat'
-                },
-                actions: [
-                    { action: 'reply', title: '💬 Balas' },
-                    { action: 'mark_read', title: '✅ Tandai Dibaca' }
-                ]
-            });
-        }
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification('💕 Couple Love', {
+            body: 'Notifikasi berhasil! Kamu akan mendapat notifikasi saat ada pesan.',
+            icon: '/assets/images/icon-192x192.png',
+            badge: '/assets/images/badge-icon.png',
+            tag: 'test-notification',
+            requireInteraction: true,
+            vibrate: [200, 100, 200]
+        });
+        console.log('✅ Test notifikasi terkirim');
     } catch (err) {
-        console.log('Push notification error:', err);
+        console.log('Test notifikasi error:', err);
+    }
+}
+
+async function showIncomingMessageNotification(senderName, message) {
+    if (Notification.permission !== 'granted') return;
+    if (!document.hidden) return;
+    
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification(`💬 Pesan dari ${senderName}`, {
+            body: message.length > 100 ? message.substring(0, 100) + '...' : message,
+            icon: '/assets/images/icon-192x192.png',
+            badge: '/assets/images/badge-icon.png',
+            tag: 'new-message',
+            vibrate: [200, 100, 200],
+            requireInteraction: true,
+            data: { url: '/index.html?action=chat' },
+            actions: [{ action: 'open', title: '💬 Buka Chat' }]
+        });
+    } catch (err) {
+        console.log('Notifikasi error:', err);
     }
 }
 
@@ -158,14 +192,10 @@ async function sendTypingStatus(isTyping) {
                 couple_id: window.appState.currentCouple.id,
                 is_typing: isTyping,
                 updated_at: new Date()
-            }, {
-                onConflict: 'user_id,couple_id'
-            });
+            }, { onConflict: 'user_id,couple_id' });
         
         if (error) console.log('Typing status error:', error);
-    } catch (err) {
-        console.log('Typing status error (ignored):', err);
-    }
+    } catch (err) {}
 }
 
 function setupTypingListener() {
@@ -173,11 +203,7 @@ function setupTypingListener() {
     
     _supabaseClient
         .channel('typing-status')
-        .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'typing_status'
-        }, (payload) => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'typing_status' }, (payload) => {
             if (payload.new?.user_id === window.appState.currentPartner && payload.new?.is_typing) {
                 showTypingIndicator(true);
                 setTimeout(() => showTypingIndicator(false), 3000);
@@ -227,7 +253,7 @@ async function checkAuth() {
             if (dashboard) dashboard.style.display = 'block';
             if (loading) loading.classList.add('hidden');
             
-            await setupPushNotifications();
+            await requestNotificationPermission();
             await initializeDashboard();
             setupRealtimeListeners();
             setupTypingListener();
@@ -292,7 +318,6 @@ async function initializeDashboard() {
         setInterval(() => createFloatingHearts(3), 8000);
     } catch (error) {
         console.error('Init error:', error);
-        showToast('Error loading dashboard', 'error');
     }
 }
 
@@ -367,6 +392,7 @@ function updatePartnerStatus(profile) {
     const statusEl = document.getElementById('partnerStatusText');
     const locationEl = document.getElementById('partnerLocation');
     const indicatorEl = document.getElementById('onlineIndicator');
+    const typingStatusEl = document.getElementById('typingStatus');
     
     if (moodEl) moodEl.textContent = profile?.mood_emoji || '😊';
     if (statusEl) statusEl.textContent = profile?.status_text || 'Happy';
@@ -374,10 +400,15 @@ function updatePartnerStatus(profile) {
     const isOnline = profile?.is_online || false;
     if (locationEl) locationEl.innerHTML = isOnline ? '🟢 Online' : '⚫ Offline';
     if (indicatorEl) indicatorEl.style.background = isOnline ? '#22C55E' : '#9CA3AF';
+    
+    if (typingStatusEl && !window.appState.isTyping) {
+        typingStatusEl.innerHTML = isOnline ? '🟢 Online' : '⚫ Offline';
+        typingStatusEl.style.color = isOnline ? '#22C55E' : '#9CA3AF';
+    }
 }
 
 // ========================================
-// CHAT FUNCTIONALITY (DENGAN READ RECEIPT)
+// CHAT FUNCTIONALITY
 // ========================================
 
 async function loadChatMessages() {
@@ -401,7 +432,6 @@ async function loadChatMessages() {
         if (data && data.length > 0) {
             data.forEach(msg => displayChatMessage(msg));
             
-            // Tandai SEMUA pesan yang belum dibaca sebagai sudah dibaca
             const unreadMessages = data.filter(msg => 
                 msg.receiver_id === window.appState.currentUser?.id && !msg.is_read
             );
@@ -528,12 +558,6 @@ async function sendMessage() {
         playNotificationSound();
         showToast('💬 Pesan terkirim!', 'success');
         
-        await sendPushNotificationToPartner(
-            `💬 Dari ${window.appState.userProfile?.full_name || 'Pasangan'}`,
-            message,
-            data.id
-        );
-        
     } catch (err) {
         console.error('sendMessage error:', err);
         showToast('❌ Gagal mengirim pesan', 'error');
@@ -634,12 +658,6 @@ async function sendPoke(type) {
         showToast(messages[type], 'poke');
         createFloatingHearts(15);
         playNotificationSound();
-        
-        await sendPushNotificationToPartner(
-            `💗 ${messages[type]}`,
-            `Dari ${window.appState.userProfile?.full_name || 'Pasanganmu'}`,
-            null
-        );
         
     } catch (err) {
         console.error('sendPoke error:', err);
@@ -776,13 +794,12 @@ function getCurrentDateString() {
 }
 
 // ========================================
-// REALTIME LISTENERS - FIX VERSION
+// REALTIME LISTENERS
 // ========================================
 
 function setupRealtimeListeners() {
     if (!window.appState.currentCouple) return;
     
-    // Hapus channel lama
     try {
         _supabaseClient.removeChannel('chat-messages');
         _supabaseClient.removeChannel('read-receipts');
@@ -790,7 +807,7 @@ function setupRealtimeListeners() {
         _supabaseClient.removeChannel('profiles-online');
     } catch(e) {}
     
-    // 1. LISTENER UNTUK PESAN BARU
+    // 1. LISTENER PESAN BARU
     _supabaseClient
         .channel('chat-messages')
         .on('postgres_changes', {
@@ -806,22 +823,19 @@ function setupRealtimeListeners() {
                 
                 displayChatMessage(newMsg);
                 playNotificationSound();
-                showToast(`💬 Pesan dari ${window.appState.partnerProfile?.full_name || 'Pasangan'}`, 'chat');
+                
+                const senderName = window.appState.partnerProfile?.full_name || 'Pasangan';
+                await showIncomingMessageNotification(senderName, newMsg.message);
+                showToast(`💬 Pesan dari ${senderName}`, 'chat');
                 
                 await markMessageAsRead(newMsg.id);
                 await loadUnreadMessagesCount();
                 refreshChatMessages();
-                
-                await sendPushNotificationToPartner(
-                    `💬 Dari ${window.appState.partnerProfile?.full_name || 'Pasangan'}`,
-                    newMsg.message,
-                    newMsg.id
-                );
             }
         })
         .subscribe();
     
-    // 2. LISTENER UNTUK READ RECEIPT (CENTANG BERUBAH)
+    // 2. LISTENER READ RECEIPT
     _supabaseClient
         .channel('read-receipts')
         .on('postgres_changes', {
@@ -832,8 +846,6 @@ function setupRealtimeListeners() {
             const updatedMsg = payload.new;
             
             if (updatedMsg.sender_id === window.appState.currentUser.id && updatedMsg.is_read) {
-                console.log('✅ Pesan dibaca oleh pasangan');
-                
                 const msgElement = document.querySelector(`.chat-message[data-message-id="${updatedMsg.id}"]`);
                 if (msgElement) {
                     const statusSpan = msgElement.querySelector('.read-status');
@@ -847,7 +859,7 @@ function setupRealtimeListeners() {
         })
         .subscribe();
     
-    // 3. LISTENER UNTUK POKE
+    // 3. LISTENER POKE
     _supabaseClient
         .channel('pokes')
         .on('postgres_changes', {
@@ -868,7 +880,7 @@ function setupRealtimeListeners() {
         })
         .subscribe();
     
-    // 4. LISTENER UNTUK ONLINE/OFFLINE STATUS
+    // 4. LISTENER ONLINE/OFFLINE
     _supabaseClient
         .channel('profiles-online')
         .on('postgres_changes', {
@@ -937,7 +949,6 @@ function switchSection(section) {
     }
 }
 
-// Modal functions global
 window.openLetterModal = function(title, content) {
     const modal = document.getElementById('letterModal');
     const titleEl = document.getElementById('modalTitle');

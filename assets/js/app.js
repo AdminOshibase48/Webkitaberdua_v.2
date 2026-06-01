@@ -145,31 +145,99 @@ async function testOneSignalNotification() {
 }
 
 async function requestNotificationPermission() {
-    if (!window.OneSignal) {
-        console.log("OneSignal SDK belum load");
-        showToast("Tunggu sebentar, OneSignal sedang memuat...", "error");
+    console.log("🔔 Meminta izin notifikasi...");
+    
+    // Cek dulu apakah browser support notifikasi
+    if (!('Notification' in window)) {
+        showToast("Browser tidak support notifikasi", "error");
+        return false;
+    }
+    
+    // Cek permission
+    if (Notification.permission === 'granted') {
+        showToast("✅ Notifikasi sudah aktif!", "success");
+        window.appState.notificationPermission = true;
+        return true;
+    }
+    
+    if (Notification.permission === 'denied') {
+        showToast("⚠️ Izin notifikasi ditolak. Aktifkan di pengaturan browser", "error");
+        return false;
+    }
+    
+    // Minta izin
+    try {
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+            showToast("✅ Notifikasi diaktifkan! 💕", "success");
+            window.appState.notificationPermission = true;
+            
+            // Test notifikasi
+            setTimeout(() => {
+                new Notification("💕 Couple Love", {
+                    body: "Notifikasi berhasil! Kamu akan mendapat notifikasi saat ada pesan.",
+                    icon: "/assets/images/icon-192x192.png"
+                });
+            }, 1000);
+            return true;
+        } else {
+            showToast("⚠️ Notifikasi tidak diizinkan", "error");
+            return false;
+        }
+    } catch (error) {
+        console.log("Error request permission:", error);
+        showToast("Gagal mengaktifkan notifikasi", "error");
+        return false;
+    }
+}
+
+// Kirim notifikasi (pakai browser notification, lebih simple)
+async function sendPushNotification(title, message) {
+    // Cek izin
+    if (Notification.permission !== 'granted') {
+        console.log("Notifikasi tidak diizinkan");
+        return false;
+    }
+    
+    // Cek apakah tab sedang aktif (jika aktif, skip notifikasi)
+    if (!document.hidden) {
+        console.log("Tab aktif, skip notifikasi");
         return false;
     }
     
     try {
-        const isSubscribed = await window.OneSignal.User.PushSubscription.getOptedIn();
-        
-        if (!isSubscribed) {
-            await window.OneSignal.User.PushSubscription.optIn();
-            window.appState.notificationPermission = true;
-            showToast("✅ Notifikasi HP diaktifkan! 💕", "success");
-            setTimeout(() => testOneSignalNotification(), 2000);
-            return true;
-        } else {
-            window.appState.notificationPermission = true;
-            showToast("✅ Notifikasi sudah aktif!", "success");
-            return true;
-        }
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification(title, {
+            body: message,
+            icon: "/assets/images/icon-192x192.png",
+            badge: "/assets/images/badge-icon.png",
+            tag: "couple-message",
+            vibrate: [200, 100, 200],
+            requireInteraction: true,
+            data: {
+                url: "/index.html?action=chat"
+            },
+            actions: [
+                { action: "open", title: "💬 Buka Chat" }
+            ]
+        });
+        console.log("✅ Notifikasi terkirim ke HP");
+        return true;
     } catch (error) {
-        console.log("Request permission error:", error);
-        showToast("⚠️ Gagal mengaktifkan notifikasi", "error");
+        console.log("Error kirim notifikasi:", error);
         return false;
     }
+}
+
+// Test notifikasi
+async function testNotification() {
+    if (Notification.permission !== 'granted') {
+        const result = await requestNotificationPermission();
+        if (!result) return;
+    }
+    
+    await sendPushNotification("💕 Test Notifikasi", "Kalau muncul, notifikasi berhasil! 🎉");
 }
 
 // ========================================
@@ -893,7 +961,7 @@ function setupRealtimeListeners() {
         _supabaseClient.removeChannel('profiles-online');
     } catch(e) {}
     
-    // LISTENER PESAN BARU (CHAT MASUK) - DENGAN ONESIGNAL NOTIFICATION
+   // LISTENER PESAN BARU
 _supabaseClient
     .channel('chat-messages')
     .on('postgres_changes', {
@@ -904,56 +972,23 @@ _supabaseClient
     }, async (payload) => {
         const newMsg = payload.new;
         
-        // Hanya proses jika pesan dari pasangan (bukan dari kita sendiri)
         if (newMsg.sender_id !== window.appState.currentUser.id) {
-            console.log('📩 Pesan masuk dari pasangan:', newMsg.message);
+            console.log('📩 Pesan masuk dari pasangan');
             
-            // 1. Tampilkan pesan di chat
             displayChatMessage(newMsg);
-            
-            // 2. Suara notifikasi
             playNotificationSound();
             
-            // 3. Toast notifikasi di dalam web
             const senderName = window.appState.partnerProfile?.full_name || 'Pasangan';
-            showToast(`💬 Pesan dari ${senderName}: ${newMsg.message.substring(0, 50)}`, 'chat');
+            showToast(`💬 Pesan dari ${senderName}`, 'chat');
             
-            // 4. KIRIM NOTIFIKASI KE ONESIGNAL (ke HP)
-            console.log("📤 Mengirim notifikasi OneSignal...");
+            // KIRIM NOTIFIKASI PAKAI FUNGSI BARU
+            await sendPushNotification(
+                `💬 Pesan dari ${senderName}`,
+                newMsg.message
+            );
             
-            // Cek OneSignal ready
-            if (window.OneSignal) {
-                try {
-                    // Kirim notifikasi via OneSignal
-                    const notificationSent = await window.OneSignal.Notifications.addNotification({
-                        title: `💬 Pesan dari ${senderName}`,
-                        message: newMsg.message,
-                        icon: "https://yourdomain.com/assets/images/icon-192x192.png",
-                        url: window.location.origin + "/index.html?action=chat",
-                        requireInteraction: true
-                    });
-                    console.log("✅ OneSignal notifikasi terkirim:", notificationSent);
-                } catch (err) {
-                    console.log("❌ OneSignal error:", err);
-                }
-            } else {
-                console.log("⚠️ OneSignal tidak tersedia, coba alternatif...");
-                // Alternatif: Notifikasi browser biasa
-                if (Notification.permission === 'granted' && document.hidden) {
-                    new Notification(`💬 Pesan dari ${senderName}`, {
-                        body: newMsg.message,
-                        icon: "/assets/images/icon-192x192.png"
-                    });
-                }
-            }
-            
-            // 5. Tandai pesan sebagai sudah dibaca
             await markMessageAsRead(newMsg.id);
-            
-            // 6. Update badge unread
             await loadUnreadMessagesCount();
-            
-            // 7. Refresh centang
             refreshChatMessages();
         }
     })

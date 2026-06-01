@@ -12,7 +12,831 @@ let currentPartner = null;
 let userProfile = null;
 let partnerProfile = null;
 let chatChannel = null;
+let countdownInterval = null;// ========================================
+// MAIN APPLICATION LOGIC - FIXED VERSION
+// ========================================
+
+// Initialize Supabase client
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Global variables
+let currentUser = null;
+let currentCouple = null;
+let currentPartner = null;
+let userProfile = null;
+let partnerProfile = null;
 let countdownInterval = null;
+let heartbeatInterval = null;
+let notificationPermission = false;
+
+// DOM Elements
+let dashboardContainer, loadingScreen, sections;
+
+// ========================================
+// INITIALIZATION
+// ========================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Get DOM elements
+    dashboardContainer = document.getElementById('dashboardContainer');
+    loadingScreen = document.getElementById('loadingScreen');
+    sections = {
+        dashboard: document.getElementById('dashboardSection'),
+        chat: document.getElementById('chatSection'),
+        memories: document.getElementById('memoriesSection'),
+        letters: document.getElementById('lettersSection')
+    };
+    
+    // Request notification permission
+    if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        notificationPermission = permission === 'granted';
+    }
+    
+    // Setup event listeners
+    setupEventListeners();
+    setupNavigation();
+    
+    // Check authentication
+    checkAuth();
+});
+
+// ========================================
+// AUTHENTICATION
+// ========================================
+
+async function checkAuth() {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+            currentUser = session.user;
+            if (dashboardContainer) dashboardContainer.style.display = 'block';
+            if (loadingScreen) loadingScreen.classList.add('hidden');
+            await initializeDashboard();
+            setupRealtimeListeners();
+            startHeartbeat();
+        } else {
+            window.location.href = 'login.html';
+        }
+    } catch (error) {
+        console.error('Auth check error:', error);
+        if (loadingScreen) loadingScreen.classList.add('hidden');
+        window.location.href = 'login.html';
+    }
+}
+
+async function logout() {
+    // Update offline status before logout
+    if (userProfile) {
+        await supabase
+            .from('profiles')
+            .update({ is_online: false, last_seen: new Date() })
+            .eq('id', userProfile.id);
+    }
+    
+    await supabase.auth.signOut();
+    window.location.href = 'login.html';
+}
+
+// Heartbeat to keep online status
+function startHeartbeat() {
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    
+    heartbeatInterval = setInterval(async () => {
+        if (currentUser && userProfile) {
+            await supabase
+                .from('profiles')
+                .update({ 
+                    is_online: true, 
+                    last_seen: new Date() 
+                })
+                .eq('id', userProfile.id);
+        }
+    }, 30000); // Update every 30 seconds
+}
+
+// ========================================
+// DASHBOARD INITIALIZATION
+// ========================================
+
+async function initializeDashboard() {
+    try {
+        if (loadingScreen) loadingScreen.classList.remove('hidden');
+        
+        await loadUserProfile();
+        await loadCoupleData();
+        await loadPartnerInfo();
+        await loadChatMessages();
+        await loadLetters();
+        await loadMemories();
+        await loadCountdown();
+        await loadUnreadNotifications();
+        
+        updateWelcomeMessage();
+        updateRelationshipInfo();
+        updateLoveMeter();
+        
+        const dateElement = document.getElementById('currentDate');
+        if (dateElement) dateElement.textContent = getCurrentDateString();
+        
+        const quoteElement = document.getElementById('coupleQuote');
+        if (quoteElement) quoteElement.textContent = `"${getRandomLoveQuote()}"`;
+        
+        // Start floating hearts
+        setInterval(() => {
+            createFloatingHearts(3);
+        }, 8000);
+        
+        if (loadingScreen) loadingScreen.classList.add('hidden');
+        
+    } catch (error) {
+        console.error('Error initializing dashboard:', error);
+        if (loadingScreen) loadingScreen.classList.add('hidden');
+        showToast('Error loading dashboard. Please refresh.', 'error');
+    }
+}
+
+async function loadUserProfile() {
+    try {
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .maybeSingle();
+        
+        if (error && error.code !== 'PGRST116') {
+            console.error('Error loading profile:', error);
+            return;
+        }
+        
+        if (!profile) {
+            // Create profile if not exists
+            const { data: newProfile, error: insertError } = await supabase
+                .from('profiles')
+                .insert({
+                    user_id: currentUser.id,
+                    full_name: currentUser.email?.split('@')[0] || 'Love',
+                    mood_emoji: '😊',
+                    status_text: 'Happy',
+                    is_online: true,
+                    last_seen: new Date()
+                })
+                .select()
+                .single();
+            
+            if (!insertError && newProfile) {
+                userProfile = newProfile;
+            }
+        } else {
+            userProfile = profile;
+            // Update online status
+            await supabase
+                .from('profiles')
+                .update({ is_online: true, last_seen: new Date() })
+                .eq('id', profile.id);
+        }
+    } catch (err) {
+        console.error('Error in loadUserProfile:', err);
+    }
+}
+
+async function loadCoupleData() {
+    try {
+        const { data: couple, error } = await supabase
+            .from('couples')
+            .select('*')
+            .or(`partner1_id.eq.${currentUser.id},partner2_id.eq.${currentUser.id}`)
+            .maybeSingle();
+        
+        if (error) {
+            console.error('Error loading couple:', error);
+            return;
+        }
+        
+        if (couple) {
+            currentCouple = couple;
+            currentPartner = couple.partner1_id === currentUser.id ? couple.partner2_id : couple.partner1_id;
+            
+            // Update user profile with couple_id
+            if (userProfile && !userProfile.couple_id) {
+                await supabase
+                    .from('profiles')
+                    .update({ couple_id: couple.id })
+                    .eq('id', userProfile.id);
+                userProfile.couple_id = couple.id;
+            }
+        } else {
+            console.log('No couple found. Please create a couple record in database.');
+            showToast('Please set up your couple profile in database', 'error');
+        }
+    } catch (err) {
+        console.error('Error in loadCoupleData:', err);
+    }
+}
+
+async function loadPartnerInfo() {
+    if (!currentPartner) return;
+    
+    try {
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', currentPartner)
+            .maybeSingle();
+        
+        if (error) {
+            console.error('Error loading partner:', error);
+            return;
+        }
+        
+        partnerProfile = profile;
+        updatePartnerStatus(profile);
+    } catch (err) {
+        console.error('Error in loadPartnerInfo:', err);
+    }
+}
+
+function updatePartnerStatus(profile) {
+    const moodElement = document.getElementById('partnerMood');
+    const statusElement = document.getElementById('partnerStatusText');
+    const locationElement = document.getElementById('partnerLocation');
+    const onlineIndicator = document.getElementById('onlineIndicator');
+    const partnerAvatar = document.getElementById('partnerAvatar');
+    const chatPartnerAvatar = document.getElementById('chatPartnerAvatar');
+    const chatPartnerName = document.getElementById('chatPartnerName');
+    const typingStatus = document.getElementById('typingStatus');
+    
+    if (moodElement) moodElement.textContent = profile?.mood_emoji || '😊';
+    if (statusElement) statusElement.textContent = profile?.status_text || 'Happy';
+    
+    const isOnline = profile?.is_online || false;
+    const lastSeen = profile?.last_seen ? new Date(profile.last_seen) : null;
+    const lastSeenText = lastSeen ? `Last seen: ${formatTime(lastSeen)}` : '';
+    
+    if (locationElement) {
+        locationElement.innerHTML = isOnline ? '🟢 Online' : `⚫ ${lastSeenText}`;
+    }
+    
+    if (onlineIndicator) {
+        onlineIndicator.style.background = isOnline ? '#22C55E' : '#9CA3AF';
+    }
+    
+    if (chatPartnerName) {
+        chatPartnerName.textContent = profile?.full_name?.split(' ')[0] || 'My Love';
+    }
+    
+    if (typingStatus) {
+        typingStatus.textContent = isOnline ? '🟢 Online' : '⚫ Offline';
+        typingStatus.style.color = isOnline ? '#22C55E' : '#9CA3AF';
+    }
+    
+    // Update avatar
+    const avatarColor = profile?.full_name === 'Capi' ? '#FF6B9D' : '#C4B5FD';
+    if (partnerAvatar) {
+        partnerAvatar.style.background = `linear-gradient(135deg, ${avatarColor}, ${avatarColor}CC)`;
+    }
+    if (chatPartnerAvatar) {
+        chatPartnerAvatar.style.background = `linear-gradient(135deg, ${avatarColor}, ${avatarColor}CC)`;
+    }
+}
+
+// ========================================
+// CHAT FUNCTIONALITY
+// ========================================
+
+async function loadChatMessages() {
+    if (!currentCouple) return;
+    
+    try {
+        const { data: messages, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('couple_id', currentCouple.id)
+            .order('created_at', { ascending: true })
+            .limit(100);
+        
+        if (error) {
+            console.error('Error loading messages:', error);
+            return;
+        }
+        
+        const container = document.getElementById('chatMessages');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        if (messages && messages.length > 0) {
+            messages.forEach(msg => displayChatMessage(msg));
+        } else {
+            container.innerHTML = `
+                <div style="text-align:center; padding:40px; color:#6B7280;">
+                    <i class="fas fa-comment-dots" style="font-size:2rem; margin-bottom:10px; display:block;"></i>
+                    <p>Say something to your love 💕</p>
+                </div>
+            `;
+        }
+        
+        container.scrollTop = container.scrollHeight;
+    } catch (err) {
+        console.error('Error in loadChatMessages:', err);
+    }
+}
+
+function displayChatMessage(message) {
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+    
+    const placeholder = container.querySelector('div[style*="text-align:center"]');
+    if (placeholder) placeholder.remove();
+    
+    const div = document.createElement('div');
+    div.className = `chat-message ${message.sender_id === currentUser?.id ? 'me' : ''}`;
+    
+    const time = formatTime(message.created_at);
+    const senderName = message.sender_id === currentUser?.id ? 'Me' : (partnerProfile?.full_name || 'Love');
+    
+    div.innerHTML = `
+        <div class="message-bubble">
+            <strong style="font-size:0.7rem; opacity:0.8;">${senderName}</strong><br>
+            ${escapeHtml(message.message)}
+        </div>
+        <div class="message-time">${time}</div>
+    `;
+    
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+async function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input?.value.trim();
+    
+    if (!message || !currentCouple || !currentPartner) return;
+    
+    input.value = '';
+    
+    try {
+        const { error } = await supabase
+            .from('messages')
+            .insert({
+                couple_id: currentCouple.id,
+                sender_id: currentUser.id,
+                receiver_id: currentPartner,
+                message: message,
+                is_read: false
+            });
+        
+        if (error) {
+            console.error('Error sending message:', error);
+            showToast('Failed to send message', 'error');
+            input.value = message;
+        } else {
+            // Send push notification to partner
+            if (notificationPermission && partnerProfile) {
+                sendPushNotification(partnerProfile, 'New Message 💬', message);
+            }
+        }
+    } catch (err) {
+        console.error('Error in sendMessage:', err);
+        showToast('Failed to send message', 'error');
+        input.value = message;
+    }
+}
+
+// ========================================
+// PUSH NOTIFICATION
+// ========================================
+
+function sendPushNotification(user, title, body) {
+    // Note: This is a simulation. For real push notifications,
+    // you need to implement using Supabase Edge Functions or a service like OneSignal
+    if (document.hidden) {
+        // Show browser notification only if tab is not active
+        if (Notification.permission === 'granted') {
+            new Notification(title, {
+                body: body,
+                icon: '/assets/images/icon-192x192.png',
+                tag: 'couple-love',
+                vibrate: [200, 100, 200]
+            });
+        }
+    }
+    showToast(`${title}: ${body}`, 'chat');
+}
+
+async function loadUnreadNotifications() {
+    if (!currentUser) return;
+    
+    try {
+        const { data: notifications, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .eq('is_read', false)
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('Error loading notifications:', error);
+            return;
+        }
+        
+        if (notifications && notifications.length > 0) {
+            notifications.forEach(notif => {
+                showToast(notif.body, notif.type === 'message' ? 'chat' : 'poke');
+                
+                // Mark as read
+                supabase
+                    .from('notifications')
+                    .update({ is_read: true })
+                    .eq('id', notif.id);
+            });
+        }
+    } catch (err) {
+        console.error('Error in loadUnreadNotifications:', err);
+    }
+}
+
+// ========================================
+// POKE FUNCTIONALITY
+// ========================================
+
+async function sendPoke(type) {
+    if (!currentCouple || !currentPartner) return;
+    
+    let message = '';
+    switch(type) {
+        case 'poke': message = '💗 Poke sent!'; break;
+        case 'kangen': message = '🥺 Kangen sent!'; break;
+        case 'miss_you': message = '💌 Miss You sent!'; break;
+    }
+    
+    try {
+        const { error } = await supabase
+            .from('pokes')
+            .insert({
+                couple_id: currentCouple.id,
+                from_user_id: currentUser.id,
+                to_user_id: currentPartner,
+                type: type
+            });
+        
+        if (error) {
+            console.error('Error sending poke:', error);
+            showToast('Failed to send', 'error');
+        } else {
+            showToast(message, 'poke');
+            createFloatingHearts(15);
+        }
+    } catch (err) {
+        console.error('Error in sendPoke:', err);
+        showToast('Failed to send', 'error');
+    }
+}
+
+// ========================================
+// LETTERS FUNCTIONALITY
+// ========================================
+
+async function loadLetters() {
+    const container = document.getElementById('lettersGrid');
+    if (!container) return;
+    
+    try {
+        const { data: letters, error } = await supabase
+            .from('letters')
+            .select('*')
+            .order('created_at', { ascending: true });
+        
+        let lettersToShow = DEFAULT_LETTERS;
+        
+        if (!error && letters && letters.length > 0) {
+            lettersToShow = letters;
+        }
+        
+        container.innerHTML = lettersToShow.map(letter => `
+            <div class="letter-card" onclick="openLetterModal('${escapeHtml(letter.title)}', '${escapeHtml(letter.content)}')">
+                <i class="fas fa-envelope-open-heart"></i>
+                <h4>${escapeHtml(letter.title)}</h4>
+                <p>Open when you need this 💕</p>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('Error in loadLetters:', err);
+    }
+}
+
+// ========================================
+// MEMORIES FUNCTIONALITY
+// ========================================
+
+async function loadMemories() {
+    const container = document.getElementById('galleryGrid');
+    if (!container) return;
+    
+    try {
+        const { data: memories, error } = await supabase
+            .from('memories')
+            .select('*')
+            .eq('couple_id', currentCouple?.id)
+            .order('date', { ascending: false });
+        
+        let memoriesToShow = DEFAULT_MEMORIES;
+        
+        if (!error && memories && memories.length > 0) {
+            memoriesToShow = memories;
+        }
+        
+        if (memoriesToShow.length === 0) {
+            container.innerHTML = `
+                <div class="gallery-item">
+                    <div class="gallery-placeholder">
+                        <i class="fas fa-heart"></i>
+                        <p>No memories yet. Add your first memory!</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = memoriesToShow.map(memory => `
+            <div class="gallery-item" onclick="viewMemory('${escapeHtml(memory.title)}', '${escapeHtml(memory.description)}', '${memory.date}')">
+                ${memory.image_url ? 
+                    `<img src="${memory.image_url}" alt="${escapeHtml(memory.title)}">` :
+                    `<div class="gallery-placeholder">
+                        <i class="fas fa-camera-retro"></i>
+                        <p>📸 ${escapeHtml(memory.title)}</p>
+                    </div>`
+                }
+                <div style="padding:12px;">
+                    <h4 style="font-size:0.9rem; margin-bottom:4px;">${escapeHtml(memory.title)}</h4>
+                    <p style="font-size:0.75rem; color:#6B7280;">${formatDate(memory.date, 'short')}</p>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('Error in loadMemories:', err);
+    }
+}
+
+// ========================================
+// COUNTDOWN FUNCTIONALITY
+// ========================================
+
+async function loadCountdown() {
+    if (!currentCouple || !currentCouple.next_meeting_date) {
+        const infoElement = document.getElementById('nextMeetingInfo');
+        if (infoElement) {
+            infoElement.innerHTML = '<i class="fas fa-calendar-alt"></i><span>Set your next meeting date in database</span>';
+        }
+        return;
+    }
+    
+    const targetDate = new Date(currentCouple.next_meeting_date);
+    const elements = {
+        days: document.getElementById('countdownDays'),
+        hours: document.getElementById('countdownHours'),
+        minutes: document.getElementById('countdownMins'),
+        seconds: document.getElementById('countdownSecs')
+    };
+    
+    const infoElement = document.getElementById('nextMeetingInfo');
+    if (infoElement) {
+        infoElement.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>Next meeting: ${formatDate(targetDate)}</span>`;
+    }
+    
+    if (countdownInterval) clearInterval(countdownInterval);
+    
+    function update() {
+        updateCountdown(targetDate, elements);
+    }
+    
+    update();
+    countdownInterval = setInterval(update, 1000);
+}
+
+// ========================================
+// UI UPDATES
+// ========================================
+
+function updateWelcomeMessage() {
+    const userNameElement = document.getElementById('userName');
+    if (userNameElement && userProfile) {
+        const name = userProfile.full_name?.split(' ')[0] || 'Love';
+        userNameElement.textContent = name;
+    }
+}
+
+function updateRelationshipInfo() {
+    if (!currentCouple?.started_date) return;
+    
+    const durationElement = document.getElementById('relationshipDuration');
+    if (durationElement) {
+        durationElement.textContent = formatRelationshipDuration(currentCouple.started_date);
+    }
+}
+
+function updateLoveMeter() {
+    const valueElement = document.getElementById('loveMeterValue');
+    const fillElement = document.getElementById('loveMeterFill');
+    const messageElement = document.getElementById('loveMeterMessage');
+    
+    const value = getRandomLoveMeter();
+    
+    if (valueElement) valueElement.textContent = value + '%';
+    if (fillElement) fillElement.style.width = value + '%';
+    if (messageElement) messageElement.textContent = getLoveMeterMessage(value);
+}
+
+// ========================================
+// REALTIME LISTENERS
+// ========================================
+
+function setupRealtimeListeners() {
+    if (!currentCouple) return;
+    
+    // Listen for new messages
+    supabase
+        .channel('chat-messages')
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `couple_id=eq.${currentCouple.id}`
+        }, (payload) => {
+            const newMessage = payload.new;
+            if (newMessage.sender_id !== currentUser.id) {
+                displayChatMessage(newMessage);
+                showToast('New message from your love! 💬', 'chat');
+                
+                // Play sound or show notification
+                if (document.hidden) {
+                    sendPushNotification(null, 'New Message 💬', newMessage.message);
+                }
+            }
+        })
+        .subscribe();
+    
+    // Listen for pokes
+    supabase
+        .channel('pokes')
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'pokes',
+            filter: `to_user_id=eq.${currentUser.id}`
+        }, (payload) => {
+            const poke = payload.new;
+            let message = '';
+            if (poke.type === 'poke') message = '💗 Someone poked you!';
+            else if (poke.type === 'kangen') message = '🥺 Someone misses you!';
+            else message = '💌 Someone sent you love!';
+            
+            showToast(message, 'poke');
+            createFloatingHearts(20);
+        })
+        .subscribe();
+    
+    // Listen for profile changes (online/offline status)
+    supabase
+        .channel('profiles-online')
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles'
+        }, async (payload) => {
+            if (payload.new.user_id === currentPartner) {
+                updatePartnerStatus(payload.new);
+            }
+        })
+        .subscribe();
+}
+
+// ========================================
+// NAVIGATION
+// ========================================
+
+function setupNavigation() {
+    const navBtns = document.querySelectorAll('.nav-btn');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const navMenu = document.querySelector('.nav-menu');
+    
+    navBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const section = btn.getAttribute('data-section');
+            if (section) {
+                switchSection(section);
+            }
+            
+            if (navMenu && window.innerWidth <= 768) {
+                navMenu.classList.remove('active');
+            }
+        });
+    });
+    
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', () => {
+            if (navMenu) navMenu.classList.toggle('active');
+        });
+    }
+}
+
+function switchSection(section) {
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        if (btn.getAttribute('data-section') === section) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    if (sections) {
+        Object.keys(sections).forEach(key => {
+            if (sections[key]) {
+                if (key === section) {
+                    sections[key].classList.add('active');
+                } else {
+                    sections[key].classList.remove('active');
+                }
+            }
+        });
+    }
+    
+    if (section === 'chat') {
+        const container = document.getElementById('chatMessages');
+        if (container) container.scrollTop = container.scrollHeight;
+    }
+}
+
+// ========================================
+// EVENT LISTENERS SETUP
+// ========================================
+
+function setupEventListeners() {
+    const logoutBtns = document.querySelectorAll('#logoutBtn, #logoutBtnNav');
+    logoutBtns.forEach(btn => {
+        if (btn) btn.addEventListener('click', logout);
+    });
+    
+    const sendBtn = document.getElementById('sendChatBtn');
+    if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+    
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    }
+    
+    document.querySelectorAll('.poke-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const pokeType = btn.getAttribute('data-poke');
+            if (pokeType) sendPoke(pokeType);
+        });
+    });
+    
+    const addMemoryBtn = document.getElementById('addMemoryBtn');
+    if (addMemoryBtn) addMemoryBtn.addEventListener('click', openMemoryModal);
+    
+    const memoryForm = document.getElementById('memoryForm');
+    if (memoryForm) memoryForm.addEventListener('submit', addMemory);
+    
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    });
+    
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal.active').forEach(modal => {
+                modal.classList.remove('active');
+            });
+        }
+    });
+    
+    // Handle page visibility change (update online status)
+    document.addEventListener('visibilitychange', async () => {
+        if (currentUser && userProfile) {
+            const isVisible = !document.hidden;
+            await supabase
+                .from('profiles')
+                .update({ is_online: isVisible, last_seen: new Date() })
+                .eq('id', userProfile.id);
+        }
+    });
+}
+
+// Make functions global
+window.openLetterModal = openLetterModal;
+window.closeLetterModal = closeLetterModal;
+window.openMemoryModal = openMemoryModal;
+window.closeMemoryModal = closeMemoryModal;
+window.viewMemory = viewMemory;
+window.addMemory = addMemory;
 
 // DOM Elements
 let dashboardContainer, loadingScreen, sections;

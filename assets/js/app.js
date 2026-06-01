@@ -1,11 +1,10 @@
 // ========================================
-// COUPLE DASHBOARD - FINAL VERSION
+// COUPLE DASHBOARD - WA LIKE CHAT + PUSH NOTIFICATION
 // ========================================
 
-// Inisialisasi Supabase
 const _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Global state (gunakan window object untuk menghindari konflik)
+// Global state
 window.appState = {
     currentUser: null,
     currentCouple: null,
@@ -13,22 +12,25 @@ window.appState = {
     userProfile: null,
     partnerProfile: null,
     countdownInterval: null,
-    heartbeatInterval: null
+    heartbeatInterval: null,
+    typingTimeout: null,
+    isTyping: false,
+    unreadCount: 0,
+    notificationPermission: false,
+    serviceWorkerReady: false
 };
 
 // DOM Elements cache
 let domElements = {};
 
 // ========================================
-// UTILITY FUNCTIONS (Internal)
+// UTILITY FUNCTIONS
 // ========================================
 
 function formatDate(date, format = 'long') {
     if (!date) return '';
     const d = new Date(date);
-    if (format === 'short') {
-        return d.toLocaleDateString('id-ID');
-    }
+    if (format === 'short') return d.toLocaleDateString('id-ID');
     return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
@@ -45,15 +47,21 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+function playNotificationSound() {
+    try {
+        const audio = new Audio('data:audio/wav;base64,U3RlYWx0aCBpcyBhIG1lbG9keS4uLg==');
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log('Sound play failed:', e));
+    } catch(e) {}
+}
+
 function showToast(message, type = 'love') {
     const container = document.getElementById('toastContainer');
     if (!container) return;
-    
     const toast = document.createElement('div');
     toast.className = 'toast-notification';
     toast.innerHTML = `<i class="fas fa-heart" style="color: #FF6B9D;"></i><span>${escapeHtml(message)}</span>`;
     container.appendChild(toast);
-    
     setTimeout(() => toast.classList.add('show'), 10);
     setTimeout(() => {
         toast.classList.remove('show');
@@ -64,70 +72,204 @@ function showToast(message, type = 'love') {
 function createFloatingHearts(count = 10) {
     const container = document.getElementById('floatingHearts');
     if (!container) return;
-    
     for (let i = 0; i < count; i++) {
         const heart = document.createElement('div');
         heart.className = 'floating-heart';
         heart.innerHTML = '<i class="fas fa-heart"></i>';
         heart.style.left = Math.random() * 100 + '%';
         heart.style.animationDuration = 2 + Math.random() * 3 + 's';
-        heart.style.animationDelay = Math.random() * 1 + 's';
         heart.style.fontSize = 0.8 + Math.random() * 1 + 'rem';
         container.appendChild(heart);
         setTimeout(() => heart.remove(), 5000);
     }
 }
 
-function calculateRelationshipDuration(startDate) {
-    if (!startDate) return { years: 0, months: 0, days: 0, totalDays: 0 };
-    const start = new Date(startDate);
-    const now = new Date();
-    const totalDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-    return { years: 0, months: 0, days: 0, totalDays };
-}
+// ========================================
+// PUSH NOTIFICATION SETUP
+// ========================================
 
-function formatRelationshipDuration(startDate) {
-    if (!startDate) return 'Just started our journey';
-    const start = new Date(startDate);
-    const now = new Date();
-    const totalDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+async function setupPushNotifications() {
+    if (!('Notification' in window)) {
+        console.log('Browser tidak support notifikasi');
+        return;
+    }
     
-    if (totalDays >= 365) {
-        const years = Math.floor(totalDays / 365);
-        return `${years} year${years > 1 ? 's' : ''} of love`;
-    } else if (totalDays >= 30) {
-        const months = Math.floor(totalDays / 30);
-        return `${months} month${months > 1 ? 's' : ''} of love`;
-    } else {
-        return `${totalDays} day${totalDays > 1 ? 's' : ''} of love`;
+    if (Notification.permission === 'granted') {
+        window.appState.notificationPermission = true;
+        registerServiceWorker();
+    } else if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission();
+        window.appState.notificationPermission = permission === 'granted';
+        if (permission === 'granted') {
+            registerServiceWorker();
+            showToast('Notifikasi diaktifkan! 💕', 'success');
+        }
     }
 }
 
-function getRandomLoveMeter() {
-    return Math.floor(Math.random() * 11) + 90;
+async function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        try {
+            const registration = await navigator.serviceWorker.register('/service-worker.js');
+            window.appState.serviceWorkerReady = true;
+            console.log('Service Worker registered');
+            
+            // Dapatkan subscription untuk push
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array('YOUR_VAPID_PUBLIC_KEY')
+            });
+            
+            // Simpan subscription ke Supabase
+            if (window.appState.currentUser) {
+                await _supabaseClient
+                    .from('profiles')
+                    .update({ push_subscription: subscription })
+                    .eq('user_id', window.appState.currentUser.id);
+            }
+        } catch (err) {
+            console.log('Service Worker error:', err);
+        }
+    }
 }
 
-function getLoveMeterMessage(value) {
-    if (value >= 98) return "You two are inseparable! ❤️";
-    if (value >= 95) return "Perfect match! 💕";
-    if (value >= 90) return "Soulmates forever! 💗";
-    return "Love is growing everyday! 💖";
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
 }
 
-function getRandomLoveQuote() {
-    const quotes = [
-        "In every heartbeat, there's your name.",
-        "You are my today and all of my tomorrows.",
-        "Every love story is beautiful, but ours is my favorite.",
-        "Distance means so little when someone means so much.",
-        "You are the best thing that's ever been mine."
-    ];
-    return quotes[Math.floor(Math.random() * quotes.length)];
+// Kirim notifikasi ke pasangan
+async function sendPushNotificationToPartner(title, body, messageId) {
+    if (!window.appState.partnerProfile?.push_subscription) return;
+    
+    try {
+        // Simpan notifikasi ke database
+        await _supabaseClient
+            .from('notifications')
+            .insert({
+                user_id: window.appState.currentPartner,
+                title: title,
+                body: body,
+                type: 'message',
+                message_id: messageId
+            });
+        
+        // Jika browser pasangan mendukung, kirim push
+        if (window.appState.serviceWorkerReady && window.appState.partnerProfile.is_online === false) {
+            const registration = await navigator.serviceWorker.ready;
+            await registration.showNotification(title, {
+                body: body,
+                icon: '/assets/images/icon-192x192.png',
+                badge: '/assets/images/badge-icon.png',
+                tag: 'couple-message',
+                vibrate: [200, 100, 200],
+                data: {
+                    messageId: messageId,
+                    senderId: window.appState.currentUser.id,
+                    url: '/index.html?action=chat'
+                },
+                actions: [
+                    { action: 'reply', title: '💬 Balas' },
+                    { action: 'mark_read', title: '✅ Tandai Dibaca' }
+                ]
+            });
+        }
+    } catch (err) {
+        console.log('Push notification error:', err);
+    }
 }
 
-function getCurrentDateString() {
-    const now = new Date();
-    return now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+// ========================================
+// TYPING INDICATOR
+// ========================================
+
+async function sendTypingStatus(isTyping) {
+    if (!window.appState.currentCouple || !window.appState.currentPartner) return;
+    
+    await _supabaseClient
+        .from('typing_status')
+        .upsert({
+            user_id: window.appState.currentUser.id,
+            couple_id: window.appState.currentCouple.id,
+            is_typing: isTyping,
+            updated_at: new Date()
+        });
+}
+
+function setupTypingListener() {
+    _supabaseClient
+        .channel('typing-status')
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'typing_status'
+        }, (payload) => {
+            if (payload.new?.user_id === window.appState.currentPartner && payload.new?.is_typing) {
+                showTypingIndicator(true);
+                setTimeout(() => showTypingIndicator(false), 3000);
+            }
+        })
+        .subscribe();
+}
+
+function showTypingIndicator(show) {
+    const statusEl = document.getElementById('typingStatus');
+    if (statusEl) {
+        if (show) {
+            statusEl.innerHTML = '✍️ Sedang mengetik...';
+            statusEl.style.color = '#FF6B9D';
+        } else {
+            const isOnline = window.appState.partnerProfile?.is_online;
+            statusEl.innerHTML = isOnline ? '🟢 Online' : '⚫ Offline';
+            statusEl.style.color = isOnline ? '#22C55E' : '#9CA3AF';
+        }
+    }
+}
+
+// ========================================
+// READ RECEIPT (Centang biru)
+// ========================================
+
+async function markMessageAsRead(messageId) {
+    await _supabaseClient
+        .from('messages')
+        .update({ is_read: true, read_at: new Date() })
+        .eq('id', messageId)
+        .eq('receiver_id', window.appState.currentUser.id);
+}
+
+async function markAllMessagesAsRead() {
+    if (!window.appState.currentCouple) return;
+    
+    await _supabaseClient
+        .from('messages')
+        .update({ is_read: true, read_at: new Date() })
+        .eq('couple_id', window.appState.currentCouple.id)
+        .eq('receiver_id', window.appState.currentUser.id)
+        .eq('is_read', false);
+    
+    updateUnreadCount(0);
+}
+
+function updateUnreadCount(count) {
+    window.appState.unreadCount = count;
+    const badge = document.getElementById('unreadBadge');
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count > 9 ? '9+' : count;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    // Update title browser
+    document.title = count > 0 ? `(${count}) Couple Love` : 'Couple Love';
 }
 
 // ========================================
@@ -137,23 +279,23 @@ function getCurrentDateString() {
 async function checkAuth() {
     try {
         const { data: { session } } = await _supabaseClient.auth.getSession();
-        
         if (session) {
             window.appState.currentUser = session.user;
             const dashboard = document.getElementById('dashboardContainer');
             const loading = document.getElementById('loadingScreen');
             if (dashboard) dashboard.style.display = 'block';
             if (loading) loading.classList.add('hidden');
+            
+            await setupPushNotifications();
             await initializeDashboard();
             setupRealtimeListeners();
+            setupTypingListener();
             startHeartbeat();
         } else {
             window.location.href = 'login.html';
         }
     } catch (error) {
         console.error('Auth error:', error);
-        const loading = document.getElementById('loadingScreen');
-        if (loading) loading.classList.add('hidden');
         window.location.href = 'login.html';
     }
 }
@@ -171,7 +313,6 @@ async function logoutUser() {
 
 function startHeartbeat() {
     if (window.appState.heartbeatInterval) clearInterval(window.appState.heartbeatInterval);
-    
     window.appState.heartbeatInterval = setInterval(async () => {
         if (window.appState.currentUser && window.appState.userProfile) {
             await _supabaseClient
@@ -188,9 +329,6 @@ function startHeartbeat() {
 
 async function initializeDashboard() {
     try {
-        const loading = document.getElementById('loadingScreen');
-        if (loading) loading.classList.remove('hidden');
-        
         await loadUserProfile();
         await loadCoupleData();
         await loadPartnerInfo();
@@ -198,6 +336,7 @@ async function initializeDashboard() {
         await loadLetters();
         await loadMemories();
         await loadCountdown();
+        await loadUnreadMessagesCount();
         
         updateWelcomeMessage();
         updateRelationshipInfo();
@@ -210,12 +349,8 @@ async function initializeDashboard() {
         if (quoteEl) quoteEl.textContent = `"${getRandomLoveQuote()}"`;
         
         setInterval(() => createFloatingHearts(3), 8000);
-        
-        if (loading) loading.classList.add('hidden');
     } catch (error) {
         console.error('Init error:', error);
-        const loading = document.getElementById('loadingScreen');
-        if (loading) loading.classList.add('hidden');
         showToast('Error loading dashboard', 'error');
     }
 }
@@ -228,13 +363,8 @@ async function loadUserProfile() {
             .eq('user_id', window.appState.currentUser.id)
             .maybeSingle();
         
-        if (error && error.code !== 'PGRST116') {
-            console.error('Profile error:', error);
-            return;
-        }
-        
         if (!data) {
-            const { data: newProfile, error: insertError } = await _supabaseClient
+            const { data: newProfile } = await _supabaseClient
                 .from('profiles')
                 .insert({
                     user_id: window.appState.currentUser.id,
@@ -246,10 +376,7 @@ async function loadUserProfile() {
                 })
                 .select()
                 .single();
-            
-            if (!insertError && newProfile) {
-                window.appState.userProfile = newProfile;
-            }
+            window.appState.userProfile = newProfile;
         } else {
             window.appState.userProfile = data;
             await _supabaseClient
@@ -270,22 +397,9 @@ async function loadCoupleData() {
             .or(`partner1_id.eq.${window.appState.currentUser.id},partner2_id.eq.${window.appState.currentUser.id}`)
             .maybeSingle();
         
-        if (error) {
-            console.error('Couple error:', error);
-            return;
-        }
-        
         if (data) {
             window.appState.currentCouple = data;
             window.appState.currentPartner = data.partner1_id === window.appState.currentUser.id ? data.partner2_id : data.partner1_id;
-            
-            if (window.appState.userProfile && !window.appState.userProfile.couple_id) {
-                await _supabaseClient
-                    .from('profiles')
-                    .update({ couple_id: data.id })
-                    .eq('id', window.appState.userProfile.id);
-                window.appState.userProfile.couple_id = data.id;
-            }
         }
     } catch (err) {
         console.error('loadCoupleData error:', err);
@@ -294,19 +408,12 @@ async function loadCoupleData() {
 
 async function loadPartnerInfo() {
     if (!window.appState.currentPartner) return;
-    
     try {
-        const { data, error } = await _supabaseClient
+        const { data } = await _supabaseClient
             .from('profiles')
             .select('*')
             .eq('user_id', window.appState.currentPartner)
             .maybeSingle();
-        
-        if (error) {
-            console.error('Partner error:', error);
-            return;
-        }
-        
         window.appState.partnerProfile = data;
         updatePartnerStatus(data);
     } catch (err) {
@@ -319,9 +426,6 @@ function updatePartnerStatus(profile) {
     const statusEl = document.getElementById('partnerStatusText');
     const locationEl = document.getElementById('partnerLocation');
     const indicatorEl = document.getElementById('onlineIndicator');
-    const partnerAvatar = document.getElementById('partnerAvatar');
-    const chatPartnerName = document.getElementById('chatPartnerName');
-    const typingStatus = document.getElementById('typingStatus');
     
     if (moodEl) moodEl.textContent = profile?.mood_emoji || '😊';
     if (statusEl) statusEl.textContent = profile?.status_text || 'Happy';
@@ -329,20 +433,10 @@ function updatePartnerStatus(profile) {
     const isOnline = profile?.is_online || false;
     if (locationEl) locationEl.innerHTML = isOnline ? '🟢 Online' : '⚫ Offline';
     if (indicatorEl) indicatorEl.style.background = isOnline ? '#22C55E' : '#9CA3AF';
-    if (chatPartnerName) chatPartnerName.textContent = profile?.full_name?.split(' ')[0] || 'My Love';
-    if (typingStatus) {
-        typingStatus.textContent = isOnline ? '🟢 Online' : '⚫ Offline';
-        typingStatus.style.color = isOnline ? '#22C55E' : '#9CA3AF';
-    }
-    
-    if (partnerAvatar) {
-        const color = profile?.full_name === 'Capi' ? '#FF6B9D' : '#C4B5FD';
-        partnerAvatar.style.background = `linear-gradient(135deg, ${color}, ${color}CC)`;
-    }
 }
 
 // ========================================
-// CHAT FUNCTIONALITY
+// CHAT FUNCTIONALITY (DENGAN READ RECEIPT)
 // ========================================
 
 async function loadChatMessages() {
@@ -354,12 +448,9 @@ async function loadChatMessages() {
             .select('*')
             .eq('couple_id', window.appState.currentCouple.id)
             .order('created_at', { ascending: true })
-            .limit(100);
+            .limit(200);
         
-        if (error) {
-            console.error('Messages error:', error);
-            return;
-        }
+        if (error) throw error;
         
         const container = document.getElementById('chatMessages');
         if (!container) return;
@@ -368,8 +459,16 @@ async function loadChatMessages() {
         
         if (data && data.length > 0) {
             data.forEach(msg => displayChatMessage(msg));
+            // Tandai semua pesan yang belum dibaca sebagai sudah dibaca
+            const unreadMessages = data.filter(msg => msg.receiver_id === window.appState.currentUser.id && !msg.is_read);
+            if (unreadMessages.length > 0) {
+                for (const msg of unreadMessages) {
+                    await markMessageAsRead(msg.id);
+                }
+                updateUnreadCount(0);
+            }
         } else {
-            container.innerHTML = `<div style="text-align:center; padding:40px; color:#6B7280;"><i class="fas fa-comment-dots" style="font-size:2rem; margin-bottom:10px;"></i><p>Say something to your love 💕</p></div>`;
+            container.innerHTML = `<div style="text-align:center; padding:40px;"><i class="fas fa-comment-dots" style="font-size:2rem;"></i><p>Mulai chat dengan pasanganmu 💕</p></div>`;
         }
         
         container.scrollTop = container.scrollHeight;
@@ -385,13 +484,32 @@ function displayChatMessage(message) {
     const placeholder = container.querySelector('div[style*="text-align:center"]');
     if (placeholder) placeholder.remove();
     
-    const div = document.createElement('div');
     const isMe = message.sender_id === window.appState.currentUser?.id;
+    const div = document.createElement('div');
     div.className = `chat-message ${isMe ? 'me' : ''}`;
+    div.setAttribute('data-message-id', message.id);
+    
     const time = formatTime(message.created_at);
     const senderName = isMe ? 'Me' : (window.appState.partnerProfile?.full_name || 'Love');
     
-    div.innerHTML = `<div class="message-bubble"><strong style="font-size:0.7rem;">${senderName}</strong><br>${escapeHtml(message.message)}</div><div class="message-time">${time}</div>`;
+    // Status pesan: terkirim (✅), sudah dibaca (✅✅)
+    let statusIcon = '';
+    if (isMe) {
+        if (message.is_read) {
+            statusIcon = '<span class="read-status read" title="Dibaca">✅✅</span>';
+        } else {
+            statusIcon = '<span class="read-status sent" title="Terkirim">✅</span>';
+        }
+    }
+    
+    div.innerHTML = `
+        <div class="message-bubble">
+            <strong style="font-size:0.7rem; opacity:0.8;">${senderName}</strong><br>
+            ${escapeHtml(message.message)}
+            ${statusIcon}
+            <span class="message-time" style="font-size:0.65rem; margin-left:8px;">${time}</span>
+        </div>
+    `;
     
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
@@ -404,9 +522,10 @@ async function sendMessage() {
     if (!message || !window.appState.currentCouple || !window.appState.currentPartner) return;
     
     input.value = '';
+    sendTypingStatus(false);
     
     try {
-        const { error } = await _supabaseClient
+        const { data, error } = await _supabaseClient
             .from('messages')
             .insert({
                 couple_id: window.appState.currentCouple.id,
@@ -414,16 +533,55 @@ async function sendMessage() {
                 receiver_id: window.appState.currentPartner,
                 message: message,
                 is_read: false
-            });
+            })
+            .select()
+            .single();
         
-        if (error) {
-            console.error('Send error:', error);
-            showToast('Failed to send', 'error');
-            input.value = message;
-        }
+        if (error) throw error;
+        
+        playNotificationSound();
+        displayChatMessage(data);
+        
+        // Kirim notifikasi push ke pasangan
+        await sendPushNotificationToPartner(
+            `💬 Dari ${window.appState.userProfile?.full_name || 'Pasanganmu'}`,
+            message,
+            data.id
+        );
+        
     } catch (err) {
         console.error('sendMessage error:', err);
+        showToast('Gagal mengirim pesan', 'error');
         input.value = message;
+    }
+}
+
+// Typing indicator handler
+function handleTypingStart() {
+    if (!window.appState.isTyping) {
+        window.appState.isTyping = true;
+        sendTypingStatus(true);
+    }
+    
+    if (window.appState.typingTimeout) clearTimeout(window.appState.typingTimeout);
+    window.appState.typingTimeout = setTimeout(() => {
+        window.appState.isTyping = false;
+        sendTypingStatus(false);
+    }, 2000);
+}
+
+async function loadUnreadMessagesCount() {
+    if (!window.appState.currentCouple) return;
+    
+    const { data, error } = await _supabaseClient
+        .from('messages')
+        .select('id', { count: 'exact' })
+        .eq('couple_id', window.appState.currentCouple.id)
+        .eq('receiver_id', window.appState.currentUser.id)
+        .eq('is_read', false);
+    
+    if (!error && data) {
+        updateUnreadCount(data.length);
     }
 }
 
@@ -434,7 +592,7 @@ async function sendMessage() {
 async function sendPoke(type) {
     if (!window.appState.currentCouple || !window.appState.currentPartner) return;
     
-    const messages = { poke: '💗 Poke sent!', kangen: '🥺 Kangen sent!', miss_you: '💌 Miss You sent!' };
+    const messages = { poke: '💗 Poke!', kangen: '🥺 Kangen!', miss_you: '💌 Miss You!' };
     
     try {
         const { error } = await _supabaseClient
@@ -446,20 +604,26 @@ async function sendPoke(type) {
                 type: type
             });
         
-        if (error) {
-            console.error('Poke error:', error);
-            showToast('Failed to send', 'error');
-        } else {
-            showToast(messages[type], 'poke');
-            createFloatingHearts(15);
-        }
+        if (error) throw error;
+        
+        showToast(messages[type], 'poke');
+        createFloatingHearts(15);
+        playNotificationSound();
+        
+        await sendPushNotificationToPartner(
+            `💗 ${messages[type]}`,
+            `Dari ${window.appState.userProfile?.full_name || 'Pasanganmu'}`,
+            null
+        );
+        
     } catch (err) {
         console.error('sendPoke error:', err);
+        showToast('Gagal mengirim', 'error');
     }
 }
 
 // ========================================
-// LETTERS FUNCTIONALITY
+// LETTERS & MEMORIES (Sederhana)
 // ========================================
 
 async function loadLetters() {
@@ -467,74 +631,58 @@ async function loadLetters() {
     if (!container) return;
     
     try {
-        const { data, error } = await _supabaseClient
-            .from('letters')
-            .select('*')
-            .order('created_at', { ascending: true });
-        
+        const { data } = await _supabaseClient.from('letters').select('*').order('created_at');
         let letters = DEFAULT_LETTERS;
-        if (!error && data && data.length > 0) letters = data;
+        if (data && data.length > 0) letters = data;
         
         container.innerHTML = letters.map(letter => `
             <div class="letter-card" onclick="window.openLetterModal('${escapeHtml(letter.title)}', '${escapeHtml(letter.content)}')">
                 <i class="fas fa-envelope-open-heart"></i>
                 <h4>${escapeHtml(letter.title)}</h4>
-                <p>Open when you need this 💕</p>
+                <p>Klik untuk buka 💕</p>
             </div>
         `).join('');
-    } catch (err) {
-        console.error('loadLetters error:', err);
-    }
+    } catch (err) {}
 }
-
-// ========================================
-// MEMORIES FUNCTIONALITY
-// ========================================
 
 async function loadMemories() {
     const container = document.getElementById('galleryGrid');
     if (!container) return;
     
     try {
-        const { data, error } = await _supabaseClient
+        const { data } = await _supabaseClient
             .from('memories')
             .select('*')
             .eq('couple_id', window.appState.currentCouple?.id)
             .order('date', { ascending: false });
         
         let memories = DEFAULT_MEMORIES;
-        if (!error && data && data.length > 0) memories = data;
+        if (data && data.length > 0) memories = data;
         
         if (memories.length === 0) {
-            container.innerHTML = `<div class="gallery-item"><div class="gallery-placeholder"><i class="fas fa-heart"></i><p>No memories yet.</p></div></div>`;
+            container.innerHTML = `<div class="gallery-item"><div class="gallery-placeholder"><i class="fas fa-heart"></i><p>Belum ada kenangan</p></div></div>`;
             return;
         }
         
         container.innerHTML = memories.map(memory => `
             <div class="gallery-item" onclick="window.viewMemory('${escapeHtml(memory.title)}', '${escapeHtml(memory.description)}', '${memory.date}')">
-                ${memory.image_url ? `<img src="${memory.image_url}" alt="${escapeHtml(memory.title)}">` : `<div class="gallery-placeholder"><i class="fas fa-camera-retro"></i><p>📸 ${escapeHtml(memory.title)}</p></div>`}
-                <div style="padding:12px;"><h4 style="font-size:0.9rem;">${escapeHtml(memory.title)}</h4><p style="font-size:0.75rem; color:#6B7280;">${formatDate(memory.date, 'short')}</p></div>
+                <div class="gallery-placeholder"><i class="fas fa-camera-retro"></i><p>📸 ${escapeHtml(memory.title)}</p></div>
+                <div style="padding:12px;"><h4>${escapeHtml(memory.title)}</h4><p>${formatDate(memory.date, 'short')}</p></div>
             </div>
         `).join('');
-    } catch (err) {
-        console.error('loadMemories error:', err);
-    }
+    } catch (err) {}
 }
 
-// ========================================
-// COUNTDOWN FUNCTIONALITY
-// ========================================
-
 async function loadCountdown() {
-    if (!window.appState.currentCouple || !window.appState.currentCouple.next_meeting_date) {
+    if (!window.appState.currentCouple?.next_meeting_date) {
         const infoEl = document.getElementById('nextMeetingInfo');
-        if (infoEl) infoEl.innerHTML = '<i class="fas fa-calendar-alt"></i><span>Set your next meeting date</span>';
+        if (infoEl) infoEl.innerHTML = '<i class="fas fa-calendar-alt"></i><span>Atur tanggal pertemuan</span>';
         return;
     }
     
     const targetDate = new Date(window.appState.currentCouple.next_meeting_date);
     const infoEl = document.getElementById('nextMeetingInfo');
-    if (infoEl) infoEl.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>Next meeting: ${formatDate(targetDate)}</span>`;
+    if (infoEl) infoEl.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>Bertemu: ${formatDate(targetDate)}</span>`;
     
     if (window.appState.countdownInterval) clearInterval(window.appState.countdownInterval);
     
@@ -567,10 +715,6 @@ async function loadCountdown() {
     window.appState.countdownInterval = setInterval(update, 1000);
 }
 
-// ========================================
-// UI UPDATES
-// ========================================
-
 function updateWelcomeMessage() {
     const userNameEl = document.getElementById('userName');
     if (userNameEl && window.appState.userProfile) {
@@ -581,17 +725,29 @@ function updateWelcomeMessage() {
 function updateRelationshipInfo() {
     if (!window.appState.currentCouple?.started_date) return;
     const durationEl = document.getElementById('relationshipDuration');
-    if (durationEl) durationEl.textContent = formatRelationshipDuration(window.appState.currentCouple.started_date);
+    if (durationEl) {
+        const start = new Date(window.appState.currentCouple.started_date);
+        const now = new Date();
+        const days = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+        durationEl.textContent = `${days} hari bersama ❤️`;
+    }
 }
 
 function updateLoveMeter() {
-    const value = getRandomLoveMeter();
+    const value = Math.floor(Math.random() * 11) + 90;
     const valueEl = document.getElementById('loveMeterValue');
     const fillEl = document.getElementById('loveMeterFill');
-    const msgEl = document.getElementById('loveMeterMessage');
     if (valueEl) valueEl.textContent = value + '%';
     if (fillEl) fillEl.style.width = value + '%';
-    if (msgEl) msgEl.textContent = getLoveMeterMessage(value);
+}
+
+function getRandomLoveQuote() {
+    const quotes = ["In every heartbeat, there's your name.", "You are my today and all of my tomorrows.", "Every love story is beautiful, but ours is my favorite."];
+    return quotes[Math.floor(Math.random() * quotes.length)];
+}
+
+function getCurrentDateString() {
+    return new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 // ========================================
@@ -601,6 +757,7 @@ function updateLoveMeter() {
 function setupRealtimeListeners() {
     if (!window.appState.currentCouple) return;
     
+    // Listen for new messages
     _supabaseClient
         .channel('chat-messages')
         .on('postgres_changes', {
@@ -608,14 +765,49 @@ function setupRealtimeListeners() {
             schema: 'public',
             table: 'messages',
             filter: `couple_id=eq.${window.appState.currentCouple.id}`
-        }, (payload) => {
-            if (payload.new.sender_id !== window.appState.currentUser.id) {
-                displayChatMessage(payload.new);
-                showToast('New message from your love! 💬', 'chat');
+        }, async (payload) => {
+            const newMsg = payload.new;
+            if (newMsg.sender_id !== window.appState.currentUser.id) {
+                displayChatMessage(newMsg);
+                playNotificationSound();
+                showToast(`💬 Pesan dari ${window.appState.partnerProfile?.full_name || 'Pasangan'}`, 'chat');
+                
+                // Tandai sebagai dibaca
+                await markMessageAsRead(newMsg.id);
+                
+                // Kirim notifikasi push ke HP
+                await sendPushNotificationToPartner(
+                    `💬 Dari ${window.appState.partnerProfile?.full_name || 'Pasangan'}`,
+                    newMsg.message,
+                    newMsg.id
+                );
             }
         })
         .subscribe();
     
+    // Listen for read receipt updates
+    _supabaseClient
+        .channel('read-receipts')
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'messages',
+            filter: `receiver_id=eq.${window.appState.currentUser.id}`
+        }, (payload) => {
+            const updatedMsg = payload.new;
+            const msgElement = document.querySelector(`.chat-message[data-message-id="${updatedMsg.id}"]`);
+            if (msgElement && updatedMsg.is_read) {
+                const statusSpan = msgElement.querySelector('.read-status');
+                if (statusSpan) {
+                    statusSpan.innerHTML = '✅✅';
+                    statusSpan.className = 'read-status read';
+                    statusSpan.title = 'Dibaca';
+                }
+            }
+        })
+        .subscribe();
+    
+    // Listen for pokes
     _supabaseClient
         .channel('pokes')
         .on('postgres_changes', {
@@ -624,11 +816,13 @@ function setupRealtimeListeners() {
             table: 'pokes',
             filter: `to_user_id=eq.${window.appState.currentUser.id}`
         }, () => {
-            showToast('💗 Someone sent you love!', 'poke');
+            showToast('💗 Ada yang kirim love buat kamu!', 'poke');
             createFloatingHearts(20);
+            playNotificationSound();
         })
         .subscribe();
     
+    // Listen for profile changes (online/offline)
     _supabaseClient
         .channel('profiles-online')
         .on('postgres_changes', {
@@ -644,79 +838,7 @@ function setupRealtimeListeners() {
 }
 
 // ========================================
-// MODAL FUNCTIONS (Global)
-// ========================================
-
-window.openLetterModal = function(title, content) {
-    const modal = document.getElementById('letterModal');
-    const titleEl = document.getElementById('modalTitle');
-    const contentEl = document.getElementById('modalContent');
-    if (titleEl) titleEl.textContent = title;
-    if (contentEl) contentEl.innerHTML = `<p>${escapeHtml(content)}</p>`;
-    if (modal) modal.classList.add('active');
-};
-
-window.closeLetterModal = function() {
-    const modal = document.getElementById('letterModal');
-    if (modal) modal.classList.remove('active');
-};
-
-window.openMemoryModal = function() {
-    const modal = document.getElementById('memoryModal');
-    if (modal) modal.classList.add('active');
-};
-
-window.closeMemoryModal = function() {
-    const modal = document.getElementById('memoryModal');
-    if (modal) modal.classList.remove('active');
-};
-
-window.viewMemory = function(title, description, date) {
-    const modal = document.getElementById('letterModal');
-    const titleEl = document.getElementById('modalTitle');
-    const contentEl = document.getElementById('modalContent');
-    if (titleEl) titleEl.textContent = `📸 ${title}`;
-    if (contentEl) contentEl.innerHTML = `<p>${escapeHtml(description)}</p><p style="margin-top:12px; font-size:0.8rem; color:#FF6B9D;">${formatDate(date)}</p>`;
-    if (modal) modal.classList.add('active');
-};
-
-window.addMemory = async function(event) {
-    event.preventDefault();
-    const title = document.getElementById('memoryTitleInput')?.value;
-    const description = document.getElementById('memoryDescInput')?.value;
-    const date = document.getElementById('memoryDateInput')?.value;
-    const imageUrl = document.getElementById('memoryImageInput')?.value;
-    
-    if (!title || !description || !date) {
-        showToast('Please fill all fields', 'error');
-        return;
-    }
-    
-    const { error } = await _supabaseClient
-        .from('memories')
-        .insert({
-            couple_id: window.appState.currentCouple.id,
-            title: title,
-            description: description,
-            date: date,
-            image_url: imageUrl || null
-        });
-    
-    if (error) {
-        showToast('Failed to add memory', 'error');
-    } else {
-        showToast('Memory added! ❤️', 'success');
-        window.closeMemoryModal();
-        await loadMemories();
-        ['memoryTitleInput', 'memoryDescInput', 'memoryDateInput', 'memoryImageInput'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.value = '';
-        });
-    }
-};
-
-// ========================================
-// NAVIGATION
+// NAVIGATION & MODALS
 // ========================================
 
 function setupNavigation() {
@@ -761,10 +883,78 @@ function switchSection(section) {
     });
     
     if (section === 'chat') {
+        markAllMessagesAsRead();
         const container = document.getElementById('chatMessages');
         if (container) container.scrollTop = container.scrollHeight;
     }
 }
+
+// Modal functions global
+window.openLetterModal = function(title, content) {
+    const modal = document.getElementById('letterModal');
+    const titleEl = document.getElementById('modalTitle');
+    const contentEl = document.getElementById('modalContent');
+    if (titleEl) titleEl.textContent = title;
+    if (contentEl) contentEl.innerHTML = `<p>${escapeHtml(content)}</p>`;
+    if (modal) modal.classList.add('active');
+};
+
+window.closeLetterModal = function() {
+    const modal = document.getElementById('letterModal');
+    if (modal) modal.classList.remove('active');
+};
+
+window.openMemoryModal = function() {
+    const modal = document.getElementById('memoryModal');
+    if (modal) modal.classList.add('active');
+};
+
+window.closeMemoryModal = function() {
+    const modal = document.getElementById('memoryModal');
+    if (modal) modal.classList.remove('active');
+};
+
+window.viewMemory = function(title, description, date) {
+    const modal = document.getElementById('letterModal');
+    const titleEl = document.getElementById('modalTitle');
+    const contentEl = document.getElementById('modalContent');
+    if (titleEl) titleEl.textContent = `📸 ${title}`;
+    if (contentEl) contentEl.innerHTML = `<p>${escapeHtml(description)}</p><p style="margin-top:12px; color:#FF6B9D;">${formatDate(date)}</p>`;
+    if (modal) modal.classList.add('active');
+};
+
+window.addMemory = async function(event) {
+    event.preventDefault();
+    const title = document.getElementById('memoryTitleInput')?.value;
+    const description = document.getElementById('memoryDescInput')?.value;
+    const date = document.getElementById('memoryDateInput')?.value;
+    
+    if (!title || !description || !date) {
+        showToast('Isi semua field ya sayang', 'error');
+        return;
+    }
+    
+    const { error } = await _supabaseClient
+        .from('memories')
+        .insert({
+            couple_id: window.appState.currentCouple.id,
+            title: title,
+            description: description,
+            date: date
+        });
+    
+    if (error) {
+        showToast('Gagal menambah kenangan', 'error');
+    } else {
+        showToast('Kenangan tersimpan! ❤️', 'success');
+        window.closeMemoryModal();
+        await loadMemories();
+        ['memoryTitleInput', 'memoryDescInput', 'memoryDateInput', 'memoryImageInput'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+    }
+};
 
 // ========================================
 // EVENT LISTENERS
@@ -778,7 +968,10 @@ function setupEventListeners() {
     if (sendBtn) sendBtn.addEventListener('click', sendMessage);
     
     const chatInput = document.getElementById('chatInput');
-    if (chatInput) chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+        chatInput.addEventListener('input', handleTypingStart);
+    }
     
     document.querySelectorAll('.poke-btn').forEach(btn => {
         btn.addEventListener('click', () => sendPoke(btn.getAttribute('data-poke')));
@@ -806,6 +999,10 @@ function setupEventListeners() {
                 .from('profiles')
                 .update({ is_online: !document.hidden, last_seen: new Date() })
                 .eq('id', window.appState.userProfile.id);
+            
+            if (!document.hidden && window.appState.unreadCount > 0) {
+                markAllMessagesAsRead();
+            }
         }
     });
 }

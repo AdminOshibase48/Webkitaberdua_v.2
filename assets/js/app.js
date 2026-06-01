@@ -893,39 +893,71 @@ function setupRealtimeListeners() {
         _supabaseClient.removeChannel('profiles-online');
     } catch(e) {}
     
-    // LISTENER PESAN BARU
-    _supabaseClient
-        .channel('chat-messages')
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `couple_id=eq.${window.appState.currentCouple.id}`
-        }, async (payload) => {
-            const newMsg = payload.new;
+    // LISTENER PESAN BARU (CHAT MASUK) - DENGAN ONESIGNAL NOTIFICATION
+_supabaseClient
+    .channel('chat-messages')
+    .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `couple_id=eq.${window.appState.currentCouple.id}`
+    }, async (payload) => {
+        const newMsg = payload.new;
+        
+        // Hanya proses jika pesan dari pasangan (bukan dari kita sendiri)
+        if (newMsg.sender_id !== window.appState.currentUser.id) {
+            console.log('📩 Pesan masuk dari pasangan:', newMsg.message);
             
-            if (newMsg.sender_id !== window.appState.currentUser.id) {
-                console.log('📩 Pesan masuk dari pasangan');
-                
-                displayChatMessage(newMsg);
-                playNotificationSound();
-                
-                const senderName = window.appState.partnerProfile?.full_name || 'Pasangan';
-                showToast(`💬 Pesan dari ${senderName}`, 'chat');
-                
-                if (document.hidden) {
-                    await sendOneSignalNotification(
-                        `💬 Pesan dari ${senderName}`,
-                        newMsg.message
-                    );
+            // 1. Tampilkan pesan di chat
+            displayChatMessage(newMsg);
+            
+            // 2. Suara notifikasi
+            playNotificationSound();
+            
+            // 3. Toast notifikasi di dalam web
+            const senderName = window.appState.partnerProfile?.full_name || 'Pasangan';
+            showToast(`💬 Pesan dari ${senderName}: ${newMsg.message.substring(0, 50)}`, 'chat');
+            
+            // 4. KIRIM NOTIFIKASI KE ONESIGNAL (ke HP)
+            console.log("📤 Mengirim notifikasi OneSignal...");
+            
+            // Cek OneSignal ready
+            if (window.OneSignal) {
+                try {
+                    // Kirim notifikasi via OneSignal
+                    const notificationSent = await window.OneSignal.Notifications.addNotification({
+                        title: `💬 Pesan dari ${senderName}`,
+                        message: newMsg.message,
+                        icon: "https://yourdomain.com/assets/images/icon-192x192.png",
+                        url: window.location.origin + "/index.html?action=chat",
+                        requireInteraction: true
+                    });
+                    console.log("✅ OneSignal notifikasi terkirim:", notificationSent);
+                } catch (err) {
+                    console.log("❌ OneSignal error:", err);
                 }
-                
-                await markMessageAsRead(newMsg.id);
-                await loadUnreadMessagesCount();
-                refreshChatMessages();
+            } else {
+                console.log("⚠️ OneSignal tidak tersedia, coba alternatif...");
+                // Alternatif: Notifikasi browser biasa
+                if (Notification.permission === 'granted' && document.hidden) {
+                    new Notification(`💬 Pesan dari ${senderName}`, {
+                        body: newMsg.message,
+                        icon: "/assets/images/icon-192x192.png"
+                    });
+                }
             }
-        })
-        .subscribe();
+            
+            // 5. Tandai pesan sebagai sudah dibaca
+            await markMessageAsRead(newMsg.id);
+            
+            // 6. Update badge unread
+            await loadUnreadMessagesCount();
+            
+            // 7. Refresh centang
+            refreshChatMessages();
+        }
+    })
+    .subscribe();
     
     // LISTENER READ RECEIPT
     _supabaseClient

@@ -1309,3 +1309,37 @@ body.login-body {
     }
 }
 </style>
+/* Read receipt styles */
+.read-status {
+    font-size: 0.65rem;
+    margin-left: 6px;
+    display: inline-block;
+}
+
+.read-status.sent {
+    opacity: 0.6;
+}
+
+.read-status.read {
+    color: #34B7F1;
+}
+
+/* Unread badge */
+#unreadBadge {
+    background: #FF6B9D;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: -8px;
+    right: -8px;
+}
+
+.nav-btn {
+    position: relative;
+}

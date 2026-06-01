@@ -2,52 +2,80 @@
 // MAIN APPLICATION LOGIC
 // ========================================
 
-// Initialize Supabase client
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialize Supabase client (hanya sekali)
+const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Global variables
 let currentUser = null;
 let currentCouple = null;
 let currentPartner = null;
+let userProfile = null;
+let partnerProfile = null;
 let chatChannel = null;
-let pokeChannel = null;
-let statusChannel = null;
 let countdownInterval = null;
-let currentSection = 'dashboard';
 
 // DOM Elements
-const dashboardContainer = document.getElementById('dashboardContainer');
-const loadingScreen = document.getElementById('loadingScreen');
-const sections = {
-    dashboard: document.getElementById('dashboardSection'),
-    chat: document.getElementById('chatSection'),
-    memories: document.getElementById('memoriesSection'),
-    letters: document.getElementById('lettersSection')
-};
+let dashboardContainer, loadingScreen, sections;
+
+// ========================================
+// INITIALIZATION
+// ========================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Get DOM elements
+    dashboardContainer = document.getElementById('dashboardContainer');
+    loadingScreen = document.getElementById('loadingScreen');
+    sections = {
+        dashboard: document.getElementById('dashboardSection'),
+        chat: document.getElementById('chatSection'),
+        memories: document.getElementById('memoriesSection'),
+        letters: document.getElementById('lettersSection')
+    };
+    
+    // Setup event listeners
+    setupEventListeners();
+    setupNavigation();
+    
+    // Check authentication
+    checkAuth();
+    
+    // Update online status on page unload
+    window.addEventListener('beforeunload', async () => {
+        if (currentUser && userProfile) {
+            await _supabase
+                .from('profiles')
+                .update({ is_online: false, last_seen: new Date() })
+                .eq('id', userProfile.id);
+        }
+    });
+});
 
 // ========================================
 // AUTHENTICATION
 // ========================================
 
-// Check if user is logged in
 async function checkAuth() {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session) {
-        currentUser = session.user;
-        dashboardContainer.style.display = 'block';
-        loadingScreen.classList.add('hidden');
-        await initializeDashboard();
-        setupRealtimeListeners();
-    } else {
-        // Redirect to login page
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        
+        if (session) {
+            currentUser = session.user;
+            if (dashboardContainer) dashboardContainer.style.display = 'block';
+            if (loadingScreen) loadingScreen.classList.add('hidden');
+            await initializeDashboard();
+            setupRealtimeListeners();
+        } else {
+            window.location.href = 'login.html';
+        }
+    } catch (error) {
+        console.error('Auth check error:', error);
+        if (loadingScreen) loadingScreen.classList.add('hidden');
         window.location.href = 'login.html';
     }
 }
 
-// Logout function
 async function logout() {
-    await supabase.auth.signOut();
+    await _supabase.auth.signOut();
     window.location.href = 'login.html';
 }
 
@@ -57,53 +85,46 @@ async function logout() {
 
 async function initializeDashboard() {
     try {
-        // Load user profile
+        // Show loading
+        if (loadingScreen) loadingScreen.classList.remove('hidden');
+        
+        // Load all data
         await loadUserProfile();
-        
-        // Load couple data
         await loadCoupleData();
-        
-        // Load partner info
         await loadPartnerInfo();
-        
-        // Load chat messages
         await loadChatMessages();
-        
-        // Load letters
         await loadLetters();
-        
-        // Load memories
         await loadMemories();
-        
-        // Load countdown
         await loadCountdown();
         
         // Update UI
         updateWelcomeMessage();
         updateRelationshipInfo();
         updateLoveMeter();
-        setCurrentDate();
         
-        // Set random love quote
+        const dateElement = document.getElementById('currentDate');
+        if (dateElement) dateElement.textContent = getCurrentDateString();
+        
         const quoteElement = document.getElementById('coupleQuote');
-        if (quoteElement) {
-            quoteElement.textContent = `"${getRandomLoveQuote()}"`;
-        }
+        if (quoteElement) quoteElement.textContent = `"${getRandomLoveQuote()}"`;
         
-        // Start floating hearts animation
+        // Start floating hearts
         setInterval(() => {
-            createFloatingHearts(5);
-        }, APP_CONFIG.floatingHeartsInterval);
+            createFloatingHearts(3);
+        }, 5000);
+        
+        // Hide loading
+        if (loadingScreen) loadingScreen.classList.add('hidden');
         
     } catch (error) {
         console.error('Error initializing dashboard:', error);
+        if (loadingScreen) loadingScreen.classList.add('hidden');
         showToast('Error loading dashboard. Please refresh.', 'error');
     }
 }
 
-// Load user profile from Supabase
 async function loadUserProfile() {
-    const { data: profile, error } = await supabase
+    const { data: profile, error } = await _supabase
         .from('profiles')
         .select('*')
         .eq('user_id', currentUser.id)
@@ -116,7 +137,7 @@ async function loadUserProfile() {
     
     if (!profile) {
         // Create profile if not exists
-        const { data: newProfile, error: insertError } = await supabase
+        const { data: newProfile, error: insertError } = await _supabase
             .from('profiles')
             .insert({
                 user_id: currentUser.id,
@@ -129,24 +150,21 @@ async function loadUserProfile() {
             .select()
             .single();
         
-        if (insertError) {
-            console.error('Error creating profile:', insertError);
-        } else {
-            window.userProfile = newProfile;
+        if (!insertError && newProfile) {
+            userProfile = newProfile;
         }
     } else {
-        window.userProfile = profile;
+        userProfile = profile;
         // Update online status
-        await supabase
+        await _supabase
             .from('profiles')
             .update({ is_online: true, last_seen: new Date() })
             .eq('id', profile.id);
     }
 }
 
-// Load couple data
 async function loadCoupleData() {
-    const { data: couple, error } = await supabase
+    const { data: couple, error } = await _supabase
         .from('couples')
         .select('*')
         .or(`partner1_id.eq.${currentUser.id},partner2_id.eq.${currentUser.id}`)
@@ -158,20 +176,13 @@ async function loadCoupleData() {
     }
     
     currentCouple = couple;
-    
-    // Determine partner
     currentPartner = couple.partner1_id === currentUser.id ? couple.partner2_id : couple.partner1_id;
-    
-    // Store in window
-    window.currentCouple = couple;
-    window.currentPartner = currentPartner;
 }
 
-// Load partner information
 async function loadPartnerInfo() {
     if (!currentPartner) return;
     
-    const { data: partnerProfile, error } = await supabase
+    const { data: profile, error } = await _supabase
         .from('profiles')
         .select('*')
         .eq('user_id', currentPartner)
@@ -182,24 +193,23 @@ async function loadPartnerInfo() {
         return;
     }
     
-    window.partnerProfile = partnerProfile;
-    updatePartnerStatus(partnerProfile);
+    partnerProfile = profile;
+    updatePartnerStatus(profile);
 }
 
-// Update partner status in UI
 function updatePartnerStatus(profile) {
     const moodElement = document.getElementById('partnerMood');
     const statusElement = document.getElementById('partnerStatusText');
     const locationElement = document.getElementById('partnerLocation');
     const onlineIndicator = document.getElementById('onlineIndicator');
     
-    if (moodElement) moodElement.textContent = profile.mood_emoji || '😊';
-    if (statusElement) statusElement.textContent = profile.status_text || 'Happy';
+    if (moodElement) moodElement.textContent = profile?.mood_emoji || '😊';
+    if (statusElement) statusElement.textContent = profile?.status_text || 'Happy';
     if (locationElement) {
-        locationElement.innerHTML = profile.is_online ? '🟢 Online' : '⚫ Offline';
+        locationElement.innerHTML = profile?.is_online ? '🟢 Online' : '⚫ Offline';
     }
     if (onlineIndicator) {
-        onlineIndicator.style.background = profile.is_online ? '#22C55E' : '#9CA3AF';
+        onlineIndicator.style.background = profile?.is_online ? '#22C55E' : '#9CA3AF';
     }
 }
 
@@ -210,12 +220,12 @@ function updatePartnerStatus(profile) {
 async function loadChatMessages() {
     if (!currentCouple) return;
     
-    const { data: messages, error } = await supabase
+    const { data: messages, error } = await _supabase
         .from('messages')
         .select('*')
         .eq('couple_id', currentCouple.id)
         .order('created_at', { ascending: true })
-        .limit(APP_CONFIG.maxChatMessages);
+        .limit(50);
     
     if (error) {
         console.error('Error loading messages:', error);
@@ -231,14 +241,13 @@ async function loadChatMessages() {
         messages.forEach(msg => displayChatMessage(msg));
     } else {
         container.innerHTML = `
-            <div class="chat-placeholder" style="text-align:center; padding:40px; color:var(--gray-500);">
+            <div style="text-align:center; padding:40px; color:var(--gray-500);">
                 <i class="fas fa-comment-dots" style="font-size:2rem; margin-bottom:10px; display:block;"></i>
                 <p>Say something to your love 💕</p>
             </div>
         `;
     }
     
-    // Scroll to bottom
     container.scrollTop = container.scrollHeight;
 }
 
@@ -247,12 +256,11 @@ function displayChatMessage(message) {
     if (!container) return;
     
     // Remove placeholder if exists
-    const placeholder = container.querySelector('.chat-placeholder');
+    const placeholder = container.querySelector('div[style*="text-align:center"]');
     if (placeholder) placeholder.remove();
     
     const div = document.createElement('div');
-    div.className = `chat-message ${message.sender_id === currentUser.id ? 'me' : ''}`;
-    div.setAttribute('data-message-id', message.id);
+    div.className = `chat-message ${message.sender_id === currentUser?.id ? 'me' : ''}`;
     
     const time = formatTime(message.created_at);
     
@@ -267,15 +275,13 @@ function displayChatMessage(message) {
 
 async function sendMessage() {
     const input = document.getElementById('chatInput');
-    const message = input.value.trim();
+    const message = input?.value.trim();
     
     if (!message || !currentCouple || !currentPartner) return;
     
-    // Clear input
     input.value = '';
     
-    // Send to Supabase
-    const { error } = await supabase
+    const { error } = await _supabase
         .from('messages')
         .insert({
             couple_id: currentCouple.id,
@@ -288,9 +294,7 @@ async function sendMessage() {
     if (error) {
         console.error('Error sending message:', error);
         showToast('Failed to send message', 'error');
-        input.value = message; // Restore message
-    } else {
-        playSound('message');
+        input.value = message;
     }
 }
 
@@ -302,24 +306,13 @@ async function sendPoke(type) {
     if (!currentCouple || !currentPartner) return;
     
     let message = '';
-    let emoji = '';
-    
     switch(type) {
-        case 'poke':
-            message = '💗 Poke sent!';
-            emoji = '💗';
-            break;
-        case 'kangen':
-            message = '🥺 Kangen sent!';
-            emoji = '🥺';
-            break;
-        case 'miss_you':
-            message = '💌 Miss You sent!';
-            emoji = '💌';
-            break;
+        case 'poke': message = '💗 Poke sent!'; break;
+        case 'kangen': message = '🥺 Kangen sent!'; break;
+        case 'miss_you': message = '💌 Miss You sent!'; break;
     }
     
-    const { error } = await supabase
+    const { error } = await _supabase
         .from('pokes')
         .insert({
             couple_id: currentCouple.id,
@@ -334,32 +327,6 @@ async function sendPoke(type) {
     } else {
         showToast(message, 'poke');
         createFloatingHearts(15);
-        playSound('poke');
-        
-        // Add to recent pokes
-        addToRecentPokes(emoji + ' ' + message);
-    }
-}
-
-function addToRecentPokes(text) {
-    const container = document.getElementById('recentPokes');
-    if (!container) return;
-    
-    // Remove "no pokes" text if exists
-    if (container.querySelector('.recent-text')?.innerText === 'No pokes yet. Send one!') {
-        container.innerHTML = '';
-    }
-    
-    const pokeItem = document.createElement('div');
-    pokeItem.className = 'recent-poke-item';
-    pokeItem.style.cssText = 'font-size:0.75rem; padding:4px 0; color:var(--gray-500);';
-    pokeItem.textContent = text;
-    
-    container.appendChild(pokeItem);
-    
-    // Keep only last 5
-    while (container.children.length > 5) {
-        container.removeChild(container.firstChild);
     }
 }
 
@@ -372,7 +339,7 @@ async function loadLetters() {
     if (!container) return;
     
     // Try to load from Supabase first
-    const { data: letters, error } = await supabase
+    const { data: letters, error } = await _supabase
         .from('letters')
         .select('*')
         .eq('couple_id', currentCouple?.id);
@@ -399,7 +366,6 @@ function openLetterModal(title, content) {
     
     if (modalTitle) modalTitle.textContent = title;
     if (modalContent) modalContent.innerHTML = `<p>${escapeHtml(content)}</p>`;
-    
     if (modal) modal.classList.add('active');
 }
 
@@ -416,8 +382,7 @@ async function loadMemories() {
     const container = document.getElementById('galleryGrid');
     if (!container) return;
     
-    // Try to load from Supabase
-    const { data: memories, error } = await supabase
+    const { data: memories, error } = await _supabase
         .from('memories')
         .select('*')
         .eq('couple_id', currentCouple?.id)
@@ -470,7 +435,6 @@ function viewMemory(title, description, date) {
             <p style="margin-top:12px; font-size:0.8rem; color:var(--pink-primary);">${formatDate(date)}</p>
         `;
     }
-    
     if (modal) modal.classList.add('active');
 }
 
@@ -497,7 +461,7 @@ async function addMemory(event) {
         return;
     }
     
-    const { error } = await supabase
+    const { error } = await _supabase
         .from('memories')
         .insert({
             couple_id: currentCouple.id,
@@ -516,10 +480,14 @@ async function addMemory(event) {
         await loadMemories();
         
         // Clear form
-        document.getElementById('memoryTitleInput').value = '';
-        document.getElementById('memoryDescInput').value = '';
-        document.getElementById('memoryDateInput').value = '';
-        document.getElementById('memoryImageInput').value = '';
+        const titleInput = document.getElementById('memoryTitleInput');
+        const descInput = document.getElementById('memoryDescInput');
+        const dateInput = document.getElementById('memoryDateInput');
+        const imageInput = document.getElementById('memoryImageInput');
+        if (titleInput) titleInput.value = '';
+        if (descInput) descInput.value = '';
+        if (dateInput) dateInput.value = '';
+        if (imageInput) imageInput.value = '';
     }
 }
 
@@ -565,8 +533,8 @@ async function loadCountdown() {
 
 function updateWelcomeMessage() {
     const userNameElement = document.getElementById('userName');
-    if (userNameElement && window.userProfile) {
-        const name = window.userProfile.full_name?.split(' ')[0] || 'Love';
+    if (userNameElement && userProfile) {
+        const name = userProfile.full_name?.split(' ')[0] || 'Love';
         userNameElement.textContent = name;
     }
 }
@@ -600,7 +568,7 @@ function setupRealtimeListeners() {
     if (!currentCouple) return;
     
     // Listen for new messages
-    supabase
+    _supabase
         .channel('chat-messages')
         .on('postgres_changes', {
             event: 'INSERT',
@@ -611,14 +579,13 @@ function setupRealtimeListeners() {
             const newMessage = payload.new;
             if (newMessage.sender_id !== currentUser.id) {
                 displayChatMessage(newMessage);
-                playSound('message');
                 showToast('New message from your love! 💬', 'chat');
             }
         })
         .subscribe();
     
     // Listen for pokes
-    supabase
+    _supabase
         .channel('pokes')
         .on('postgres_changes', {
             event: 'INSERT',
@@ -634,12 +601,11 @@ function setupRealtimeListeners() {
             
             showToast(message, 'poke');
             createFloatingHearts(20);
-            playSound('poke');
         })
         .subscribe();
     
     // Listen for profile changes
-    supabase
+    _supabase
         .channel('profiles')
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -669,7 +635,6 @@ function setupNavigation() {
                 switchSection(section);
             }
             
-            // Close mobile menu
             if (navMenu && window.innerWidth <= 768) {
                 navMenu.classList.remove('active');
             }
@@ -684,8 +649,6 @@ function setupNavigation() {
 }
 
 function switchSection(section) {
-    currentSection = section;
-    
     // Update nav buttons
     document.querySelectorAll('.nav-btn').forEach(btn => {
         if (btn.getAttribute('data-section') === section) {
@@ -696,15 +659,17 @@ function switchSection(section) {
     });
     
     // Update sections
-    Object.keys(sections).forEach(key => {
-        if (sections[key]) {
-            if (key === section) {
-                sections[key].classList.add('active');
-            } else {
-                sections[key].classList.remove('active');
+    if (sections) {
+        Object.keys(sections).forEach(key => {
+            if (sections[key]) {
+                if (key === section) {
+                    sections[key].classList.add('active');
+                } else {
+                    sections[key].classList.remove('active');
+                }
             }
-        }
-    });
+        });
+    }
     
     // Special actions for chat section
     if (section === 'chat') {
@@ -772,10 +737,6 @@ function setupEventListeners() {
     });
 }
 
-// ========================================
-// INITIALIZATION
-// ========================================
-
 // Make functions global for HTML onclick
 window.openLetterModal = openLetterModal;
 window.closeLetterModal = closeLetterModal;
@@ -783,20 +744,4 @@ window.openMemoryModal = openMemoryModal;
 window.closeMemoryModal = closeMemoryModal;
 window.viewMemory = viewMemory;
 window.addMemory = addMemory;
-
-// Start the app
-document.addEventListener('DOMContentLoaded', () => {
-    setupNavigation();
-    setupEventListeners();
-    checkAuth();
-    
-    // Update online status on page unload
-    window.addEventListener('beforeunload', async () => {
-        if (currentUser && window.userProfile) {
-            await supabase
-                .from('profiles')
-                .update({ is_online: false, last_seen: new Date() })
-                .eq('id', window.userProfile.id);
-        }
-    });
-});
+window.sendPoke = sendPoke;

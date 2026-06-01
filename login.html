@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Couple Love | Login</title>
+    <meta name="theme-color" content="#FF6B9D">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="assets/images/favicon-96x96.png" sizes="96x96">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/images/apple-touch-icon.png">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="login-body">
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-icon-wrapper">
+            <div class="login-icon">
+                <i class="fas fa-heart"></i>
+            </div>
+        </div>
+        <h1 class="login-title">Couple Dashboard</h1>
+        <p class="login-subtitle">Our private love space</p>
+        
+        <div id="loginError" class="error-message" style="display: none;"></div>
+        
+        <div class="input-group">
+            <label><i class="fas fa-envelope"></i> Email</label>
+            <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email">
+        </div>
+        
+        <div class="input-group">
+            <label><i class="fas fa-lock"></i> Password</label>
+            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        
+        <button class="login-btn" id="loginBtn">
+            <i class="fas fa-heart"></i>
+            <span>Enter Our Love Space</span>
+        </button>
+        
+        <p class="login-footer">Only for two hearts in love ❤️</p>
+    </div>
+</div>
+
+<div class="floating-hearts-login" id="floatingHeartsLogin"></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script>
+    // Login page specific script
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    async function login() {
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        const loginBtn = document.getElementById('loginBtn');
+        const errorDiv = document.getElementById('loginError');
+        
+        if (!email || !password) {
+            errorDiv.textContent = 'Please enter email and password ❤️';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        
+        if (error) {
+            errorDiv.textContent = error.message || 'Login failed. Try again love!';
+            errorDiv.style.display = 'block';
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = '<i class="fas fa-heart"></i><span>Enter Our Love Space</span>';
+            return;
+        }
+        
+        // Store session and redirect
+        window.location.href = 'index.html';
+    }
+    
+    document.getElementById('loginBtn').addEventListener('click', login);
+    document.getElementById('loginPassword').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') login();
+    });
+    
+    // Create floating hearts animation
+    function createFloatingHearts() {
+        const container = document.getElementById('floatingHeartsLogin');
+        setInterval(() => {
+            const heart = document.createElement('div');
+            heart.className = 'floating-heart';
+            heart.innerHTML = '<i class="fas fa-heart"></i>';
+            heart.style.left = Math.random() * 100 + '%';
+            heart.style.animationDuration = 3 + Math.random() * 4 + 's';
+            container.appendChild(heart);
+            setTimeout(() => heart.remove(), 7000);
+        }, 500);
+    }
+    
+    createFloatingHearts();
+</script>
+</body>
+</html>

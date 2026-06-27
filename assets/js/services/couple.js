@@ -1,7 +1,8 @@
-import { supabase } from './assets/js/services/supabase.js';
+// /js/services/couple.js
+import { supabase } from '../assets/js/services/supabase.js';
 
-export class CoupleService {
-    static async createCouple(userId, displayName) {
+export const CoupleService = {
+    async createCouple(userId, displayName) {
         // Generate a unique couple code
         const code = this.generateCoupleCode();
         
@@ -37,9 +38,9 @@ export class CoupleService {
             .eq('id', userId);
         
         return couple;
-    }
+    },
 
-    static async joinCouple(userId, code) {
+    async joinCouple(userId, code) {
         // Find couple by code
         const { data: couple, error: coupleError } = await supabase
             .from('couples')
@@ -78,9 +79,9 @@ export class CoupleService {
             .eq('id', userId);
         
         return couple;
-    }
+    },
 
-    static async getCouple(coupleId) {
+    async getCouple(coupleId) {
         const { data, error } = await supabase
             .from('couples')
             .select('*')
@@ -89,9 +90,9 @@ export class CoupleService {
         
         if (error) throw error;
         return data;
-    }
+    },
 
-    static async getCoupleMembers(coupleId) {
+    async getCoupleMembers(coupleId) {
         const { data, error } = await supabase
             .from('couple_members')
             .select(`
@@ -109,14 +110,14 @@ export class CoupleService {
         
         if (error) throw error;
         return data;
-    }
+    },
 
-    static async getPartner(userId, coupleId) {
+    async getPartner(userId, coupleId) {
         const members = await this.getCoupleMembers(coupleId);
         return members.find(m => m.user_id !== userId);
-    }
+    },
 
-    static async updateCouple(coupleId, updates) {
+    async updateCouple(coupleId, updates) {
         const { data, error } = await supabase
             .from('couples')
             .update(updates)
@@ -126,19 +127,18 @@ export class CoupleService {
         
         if (error) throw error;
         return data;
-    }
+    },
 
-    static generateCoupleCode() {
+    generateCoupleCode() {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let code = '';
         for (let i = 0; i < 6; i++) {
             code += chars.charAt(Math.floor(Math.random() * chars.length));
         }
         return code;
-    }
+    },
 
-    static async getCoupleStats(coupleId) {
-        // Get days together
+    async getCoupleStats(coupleId) {
         const members = await this.getCoupleMembers(coupleId);
         const oldestJoin = members.reduce((min, m) => 
             new Date(m.joined_at) < new Date(min.joined_at) ? m : min
@@ -163,9 +163,9 @@ export class CoupleService {
             totalXP,
             memberCount: members.length
         };
-    }
+    },
 
-    static subscribeToCouple(coupleId, callback) {
+    subscribeToCouple(coupleId, callback) {
         return supabase
             .channel('couple-updates')
             .on(
@@ -180,4 +180,4 @@ export class CoupleService {
             )
             .subscribe();
     }
-}
+};

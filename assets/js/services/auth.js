@@ -1,5 +1,5 @@
 // /js/services/auth.js
-import { supabase } from './assets/js/services/supabase.js';
+import { supabase } from '../assets/js/services/supabase.js';
 
 export const AuthService = {
     async register(email, password, displayName) {

@@ -1,0 +1,36 @@
+/* /css/input.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --surface: #fbf9f5;
+    --on-surface: #1b1c1a;
+    --primary: #874e58;
+    --secondary: #645495;
+    --tertiary: #316385;
+  }
+}
+
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 32px 0 rgba(135, 78, 88, 0.08);
+  }
+  
+  .accent-gradient {
+    background: linear-gradient(135deg, #874e58 0%, #645495 50%, #316385 100%);
+  }
+  
+  .primary-gradient {
+    background: linear-gradient(135deg, #ffb6c1 0%, #874e58 100%);
+  }
+  
+  .love-gradient {
+    background: linear-gradient(135deg, #ffb6c1 0%, #874e58 100%);
+  }
+}

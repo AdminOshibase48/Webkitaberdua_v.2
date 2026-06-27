@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Welcome - OurStory</title>
+    
+    <meta name="theme-color" content="#874e58">
+    <link rel="manifest" href="/manifest.json">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    
+    <link href="../assets/css/tailwind.css" rel="stylesheet">
+    <link href="../assets/css/main.css" rel="stylesheet">
+</head>
+<body>
+    <div id="app"></div>
+    
+    <script type="module">
+        import { renderWelcome, initWelcome } from '../assets/js/pages/welcome.js';
+        import { AuthService } from '../assets/js/services/auth.js';
+        
+        const session = await AuthService.getSession();
+        if (!session) {
+            window.location.href = '../pages/login.html';
+            return;
+        }
+        
+        const app = document.getElementById('app');
+        app.innerHTML = renderWelcome();
+        initWelcome();
+    </script>
+</body>
+</html>

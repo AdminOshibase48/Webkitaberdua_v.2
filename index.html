@@ -5,22 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>OurStory Together</title>
     
-    <!-- PWA Meta -->
     <meta name="theme-color" content="#874e58">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="/manifest.json">
     
-    <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     
-    <!-- CSS -->
-    <link href="assets/css/tailwind.css" rel="stylesheet">
-    <link href="assets/css/main.css" rel="stylesheet">
+    <link href="../assets/css/tailwind.css" rel="stylesheet">
+    <link href="../assets/css/main.css" rel="stylesheet">
 </head>
 <body>
-    <div id="app"></div>
+    <div id="app">
+        <!-- Loading State -->
+        <div class="min-h-screen flex items-center justify-center bg-surface">
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-full bg-primary/20 mx-auto mb-4 flex items-center justify-center animate-pulse">
+                    <span class="material-symbols-outlined text-primary text-4xl filled">favorite</span>
+                </div>
+                <p class="text-on-surface-variant">Loading OurStory...</p>
+            </div>
+        </div>
+    </div>
     
     <script>
         // Service Worker
@@ -30,8 +35,40 @@
                 .catch(() => console.log('SW registration failed'));
         }
         
-        // Navigasi awal ke splash
-        window.location.href = 'pages/splash.html';
+        // Cek session dan redirect
+        (async function() {
+            try {
+                // Import Supabase
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/+esm');
+                
+                const supabase = createClient(
+                    'https://cyrptzbwxohzhqkjquen.supabase.co',
+                    'sb_publishable_-6OEboAj0o1pZYG4si-o0Q_3xGfV5xr'
+                );
+                
+                const { data: { session } } = await supabase.auth.getSession();
+                
+                if (session) {
+                    // Cek apakah user punya couple
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('couple_id')
+                        .eq('id', session.user.id)
+                        .single();
+                    
+                    if (profile?.couple_id) {
+                        window.location.href = '/pages/dashboard.html';
+                    } else {
+                        window.location.href = '/pages/welcome.html';
+                    }
+                } else {
+                    window.location.href = '/pages/splash.html';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                window.location.href = '/pages/splash.html';
+            }
+        })();
     </script>
 </body>
 </html>

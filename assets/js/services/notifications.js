@@ -1,7 +1,8 @@
-import { supabase, Channels } from './assets/js/services/supabase.js';
+// /js/services/notifications.js
+import { supabase, Channels } from '../assets/js/services/supabase.js';
 
-export class NotificationsService {
-    static async createNotification(userId, data) {
+export const NotificationsService = {
+    async createNotification(userId, data) {
         const { type, title, message, link, metadata } = data;
         
         const { data: notification, error } = await supabase
@@ -21,9 +22,9 @@ export class NotificationsService {
         
         if (error) throw error;
         return notification;
-    }
+    },
 
-    static async getNotifications(userId, limit = 20, offset = 0) {
+    async getNotifications(userId, limit = 20, offset = 0) {
         const { data, error } = await supabase
             .from('notifications')
             .select('*')
@@ -33,9 +34,9 @@ export class NotificationsService {
         
         if (error) throw error;
         return data;
-    }
+    },
 
-    static async markAsRead(notificationIds) {
+    async markAsRead(notificationIds) {
         const { data, error } = await supabase
             .from('notifications')
             .update({ 
@@ -47,9 +48,9 @@ export class NotificationsService {
         
         if (error) throw error;
         return data;
-    }
+    },
 
-    static async markAllAsRead(userId) {
+    async markAllAsRead(userId) {
         const { error } = await supabase
             .from('notifications')
             .update({ 
@@ -60,9 +61,9 @@ export class NotificationsService {
             .eq('read', false);
         
         if (error) throw error;
-    }
+    },
 
-    static async getUnreadCount(userId) {
+    async getUnreadCount(userId) {
         const { count, error } = await supabase
             .from('notifications')
             .select('id', { count: 'exact', head: true })
@@ -71,19 +72,18 @@ export class NotificationsService {
         
         if (error) throw error;
         return count;
-    }
+    },
 
-    static async deleteNotification(notificationId) {
+    async deleteNotification(notificationId) {
         const { error } = await supabase
             .from('notifications')
             .delete()
             .eq('id', notificationId);
         
         if (error) throw error;
-    }
+    },
 
-    static async sendPartnerNotification(coupleId, userId, data) {
-        // Get all members of the couple
+    async sendPartnerNotification(coupleId, userId, data) {
         const { data: members, error } = await supabase
             .from('couple_members')
             .select('user_id')
@@ -92,7 +92,6 @@ export class NotificationsService {
         
         if (error) throw error;
         
-        // Create notifications for all other members
         const notifications = members.map(m => ({
             user_id: m.user_id,
             type: data.type,
@@ -110,9 +109,9 @@ export class NotificationsService {
         
         if (insertError) throw insertError;
         return created;
-    }
+    },
 
-    static async notifyPartnerActivity(coupleId, userId, activity) {
+    async notifyPartnerActivity(coupleId, userId, activity) {
         const { data: partner, error } = await supabase
             .from('couple_members')
             .select('user_id')
@@ -154,9 +153,9 @@ export class NotificationsService {
             message: msg.message,
             link: '/dashboard'
         });
-    }
+    },
 
-    static subscribeToNotifications(userId, callback) {
+    subscribeToNotifications(userId, callback) {
         return supabase
             .channel(Channels.NOTIFICATIONS)
             .on(
@@ -172,28 +171,27 @@ export class NotificationsService {
                 }
             )
             .subscribe();
-    }
+    },
 
-    // System notification helpers
-    static async notifyMissionComplete(coupleId, userId, missionName) {
+    async notifyMissionComplete(coupleId, userId, missionName) {
         await this.sendPartnerNotification(coupleId, userId, {
             type: 'mission_complete',
             title: 'Mission Complete! 🎉',
             message: `"${missionName}" has been completed!`,
             link: '/missions'
         });
-    }
+    },
 
-    static async notifyLevelUp(coupleId, userId, level) {
+    async notifyLevelUp(coupleId, userId, level) {
         await this.sendPartnerNotification(coupleId, userId, {
             type: 'level_up',
             title: 'Level Up! 🌟',
             message: `Your partnership has reached Level ${level}!`,
             link: '/profile'
         });
-    }
+    },
 
-    static async notifyNewMemory(coupleId, userId, memoryCaption) {
+    async notifyNewMemory(coupleId, userId, memoryCaption) {
         await this.sendPartnerNotification(coupleId, userId, {
             type: 'new_memory',
             title: 'New Memory Added 📸',
@@ -201,4 +199,4 @@ export class NotificationsService {
             link: '/gallery'
         });
     }
-}
+};

@@ -1,21 +1,22 @@
-import { AuthService } from './asseets/services/auth.js';
-import { CoupleService } from './assets/services/couple.js';
-import { NotificationsService } from './assets/services/notifications.js';
-import { supabase } from './assets/services/supabase.js';
+// /js/app.js
+import { supabase, getCurrentUser, getSession } from './assets/js/services/supabase.js';
+import { AuthService } from './assets/js/services/auth.js';
+import { CoupleService } from './assets/js/services/couple.js';
+import { NotificationsService } from './assets/js/services/notifications.js';
 
 // Import page components
-import { renderLogin } from './asset/js/pages/Login.js';
-import { renderRegister } from './asset/js/pages/Register.js';
-import { renderDashboard } from './asset/js/pages/Dashboard.js';
-import { renderChat } from './asset/js/pages/Chat.js';
-import { renderGallery } from './asset/js/pages/Gallery.js';
-import { renderFinance } from './asset/js/pages/Finance.js';
-import { renderDatePlanner } from './asset/js/pages/DatePlanner.js';
-import { renderProfile } from './asset/js/pages/Profile.js';
-import { renderNotifications } from './asset/js/pages/Notifications.js';
-import { renderMissions } from './asset/js/pages/Missions.js';
-import { renderSplash } from './asset/js/pages/Splash.js';
-import { renderWelcome } from './asset/js/pages/Welcome.js';
+import { renderLogin, initLogin } from './assets/js/pages/Login.js';
+import { renderRegister, initRegister } from './assets/js/pages/Register.js';
+import { renderDashboard, initDashboard } from './assets/js/pages/Dashboard.js';
+import { renderChat, initChat } from './assets/js/pages/Chat.js';
+import { renderGallery, initGallery } from './assets/js/pages/Gallery.js';
+import { renderFinance, initFinance } from './assets/js/pages/Finance.js';
+import { renderDatePlanner, initDatePlanner } from './assets/js/pages/DatePlanner.js';
+import { renderProfile, initProfile } from './assets/js/pages/Profile.js';
+import { renderNotifications, initNotifications } from './assets/js/pages/Notifications.js';
+import { renderMissions, initMissions } from './assets/js/pages/Missions.js';
+import { renderSplash, initSplash } from './assets/js/pages/Splash.js';
+import { renderWelcome, initWelcome } from './assets/js/pages/Welcome.js';
 
 const app = document.getElementById('app');
 
@@ -24,22 +25,21 @@ let currentPage = 'splash';
 let currentUser = null;
 let currentProfile = null;
 let coupleData = null;
-let subscription = null;
 
-// Page mappings
+// Page mappings with init functions
 const pages = {
-    splash: renderSplash,
-    welcome: renderWelcome,
-    login: renderLogin,
-    register: renderRegister,
-    dashboard: renderDashboard,
-    chat: renderChat,
-    gallery: renderGallery,
-    finance: renderFinance,
-    dateplanner: renderDatePlanner,
-    profile: renderProfile,
-    notifications: renderNotifications,
-    missions: renderMissions
+    splash: { render: renderSplash, init: initSplash },
+    welcome: { render: renderWelcome, init: initWelcome },
+    login: { render: renderLogin, init: initLogin },
+    register: { render: renderRegister, init: initRegister },
+    dashboard: { render: renderDashboard, init: initDashboard },
+    chat: { render: renderChat, init: initChat },
+    gallery: { render: renderGallery, init: initGallery },
+    finance: { render: renderFinance, init: initFinance },
+    dateplanner: { render: renderDatePlanner, init: initDatePlanner },
+    profile: { render: renderProfile, init: initProfile },
+    notifications: { render: renderNotifications, init: initNotifications },
+    missions: { render: renderMissions, init: initMissions }
 };
 
 export async function navigate(page, params = {}) {
@@ -49,32 +49,34 @@ export async function navigate(page, params = {}) {
     }
 
     currentPage = page;
-    const renderFn = pages[page];
+    const pageModule = pages[page];
     
     // Check if page requires authentication
     const requiresAuth = ['dashboard', 'chat', 'gallery', 'finance', 'dateplanner', 'profile', 'notifications', 'missions'];
     
     if (requiresAuth.includes(page)) {
-        if (!currentUser) {
-            const session = await AuthService.getSession();
+        try {
+            const session = await getSession();
             if (!session) {
                 navigate('login');
                 return;
             }
             currentUser = session.user;
             await loadUserData();
-        }
-        
-        if (!coupleData && page !== 'profile') {
-            // Check if user has a couple
-            const profile = await AuthService.getProfile(currentUser.id);
-            if (profile.couple_id) {
-                coupleData = await CoupleService.getCouple(profile.couple_id);
-            } else {
-                // User needs to create or join a couple
-                navigate('welcome');
-                return;
+            
+            if (!coupleData && page !== 'profile') {
+                const profile = await AuthService.getProfile(currentUser.id);
+                if (profile?.couple_id) {
+                    coupleData = await CoupleService.getCouple(profile.couple_id);
+                } else {
+                    navigate('welcome');
+                    return;
+                }
             }
+        } catch (error) {
+            console.error('Auth check error:', error);
+            navigate('login');
+            return;
         }
     }
 
@@ -92,9 +94,14 @@ export async function navigate(page, params = {}) {
     app.style.opacity = '0';
     
     setTimeout(() => {
-        app.innerHTML = renderFn(context);
+        app.innerHTML = pageModule.render(context);
         app.style.opacity = '1';
         app.classList.remove('page-transition');
+        
+        // Initialize page-specific functionality
+        if (pageModule.init) {
+            setTimeout(() => pageModule.init(), 100);
+        }
         
         // Update URL
         if (page !== 'splash' && page !== 'welcome') {
@@ -144,7 +151,11 @@ AuthService.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN') {
         currentUser = session.user;
         await loadUserData();
-        navigate('dashboard');
+        if (coupleData) {
+            navigate('dashboard');
+        } else {
+            navigate('welcome');
+        }
     } else if (event === 'SIGNED_OUT') {
         currentUser = null;
         currentProfile = null;
@@ -157,7 +168,7 @@ AuthService.onAuthStateChange(async (event, session) => {
 async function initApp() {
     // Check for existing session
     try {
-        const session = await AuthService.getSession();
+        const session = await getSession();
         if (session) {
             currentUser = session.user;
             await loadUserData();

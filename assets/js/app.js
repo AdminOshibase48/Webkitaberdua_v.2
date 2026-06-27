@@ -1,22 +1,23 @@
 // /js/app.js
-import { supabase, getCurrentUser, getSession } from './assets/js/services/supabase.js';
-import { AuthService } from './assets/js/services/auth.js';
-import { CoupleService } from './assets/js/services/couple.js';
-import { NotificationsService } from './assets/js/services/notifications.js';
+// Import services - gunakan relative path yang benar
+import { supabase, getCurrentUser, getSession } from './services/supabase.js';
+import { AuthService } from '../assets/js/services/auth.js';
+import { CoupleService } from '../assets/js/services/couple.js';
+import { NotificationsService } from '../assets/js/services/notifications.js';
 
 // Import page components
-import { renderLogin, initLogin } from './assets/js/pages/Login.js';
-import { renderRegister, initRegister } from './assets/js/pages/Register.js';
-import { renderDashboard, initDashboard } from './assets/js/pages/Dashboard.js';
-import { renderChat, initChat } from './assets/js/pages/Chat.js';
-import { renderGallery, initGallery } from './assets/js/pages/Gallery.js';
-import { renderFinance, initFinance } from './assets/js/pages/Finance.js';
-import { renderDatePlanner, initDatePlanner } from './assets/js/pages/DatePlanner.js';
-import { renderProfile, initProfile } from './assets/js/pages/Profile.js';
-import { renderNotifications, initNotifications } from './assets/js/pages/Notifications.js';
-import { renderMissions, initMissions } from './assets/js/pages/Missions.js';
-import { renderSplash, initSplash } from './assets/js/pages/Splash.js';
-import { renderWelcome, initWelcome } from './assets/js/pages/Welcome.js';
+import { renderLogin, initLogin } from '../assets/js/pages/Login.js';
+import { renderRegister, initRegister } from '../assets/js/pages/Register.js';
+import { renderDashboard, initDashboard } from '../assets/js/pages/Dashboard.js';
+import { renderChat, initChat } from '../assets/js/pages/Chat.js';
+import { renderGallery, initGallery } from '../assets/js/pages/Gallery.js';
+import { renderFinance, initFinance } from '../assets/js/pages/Finance.js';
+import { renderDatePlanner, initDatePlanner } from '../assets/js/pages/DatePlanner.js';
+import { renderProfile, initProfile } from '../assets/js/pages/Profile.js';
+import { renderNotifications, initNotifications } from '../assets/js/pages/Notifications.js';
+import { renderMissions, initMissions } from '../assets/js/pages/Missions.js';
+import { renderSplash, initSplash } from '../assets/js/pages/Splash.js';
+import { renderWelcome, initWelcome } from '../assets/js/pages/Welcome.js';
 
 const app = document.getElementById('app');
 

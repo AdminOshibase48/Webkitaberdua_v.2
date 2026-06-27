@@ -1,0 +1,13 @@
+{
+  "name": "ourstory-app",
+  "version": "1.0.0",
+  "description": "A digital sanctuary for couples",
+  "scripts": {
+    "build:css": "npx tailwindcss -i ./assets/css/input.css -o ./assets/css/tailwind.css --minify",
+    "build": "npm run build:css",
+    "dev": "npx tailwindcss -i ./assets/css/input.css -o ./assets/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.3.0"
+  }
+}

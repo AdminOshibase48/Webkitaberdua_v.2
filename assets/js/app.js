@@ -4,18 +4,18 @@ import { NotificationsService } from './assets/services/notifications.js';
 import { supabase } from './assets/services/supabase.js';
 
 // Import page components
-import { renderLogin } from './pages/Login.js';
-import { renderRegister } from './pages/Register.js';
-import { renderDashboard } from './pages/Dashboard.js';
-import { renderChat } from './pages/Chat.js';
-import { renderGallery } from './pages/Gallery.js';
-import { renderFinance } from './pages/Finance.js';
-import { renderDatePlanner } from './pages/DatePlanner.js';
-import { renderProfile } from './pages/Profile.js';
-import { renderNotifications } from './pages/Notifications.js';
-import { renderMissions } from './pages/Missions.js';
-import { renderSplash } from './pages/Splash.js';
-import { renderWelcome } from './pages/Welcome.js';
+import { renderLogin } from './asset/js/pages/Login.js';
+import { renderRegister } from './asset/js/pages/Register.js';
+import { renderDashboard } from './asset/js/pages/Dashboard.js';
+import { renderChat } from './asset/js/pages/Chat.js';
+import { renderGallery } from './asset/js/pages/Gallery.js';
+import { renderFinance } from './asset/js/pages/Finance.js';
+import { renderDatePlanner } from './asset/js/pages/DatePlanner.js';
+import { renderProfile } from './asset/js/pages/Profile.js';
+import { renderNotifications } from './asset/js/pages/Notifications.js';
+import { renderMissions } from './asset/js/pages/Missions.js';
+import { renderSplash } from './asset/js/pages/Splash.js';
+import { renderWelcome } from './asset/js/pages/Welcome.js';
 
 const app = document.getElementById('app');
 

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard - OurStory</title>
+    
+    <meta name="theme-color" content="#874e58">
+    <link rel="manifest" href="/manifest.json">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    
+    <link href="/css/tailwind.css" rel="stylesheet">
+    <link href="/css/main.css" rel="stylesheet">
+</head>
+<body>
+    <div id="app"></div>
+    
+    <script type="module">
+        import { renderDashboard, initDashboard } from '/js/pages/dashboard.js';
+        import { AuthService } from '../assets/js/services/auth.js';
+        import { CoupleService } from '../assets/js/services/couple.js';
+        
+        // Check if logged in
+        const session = await AuthService.getSession();
+        if (!session) {
+            window.location.href = '../pages/login.html';
+            return;
+        }
+        
+        // Get user data
+        const user = session.user;
+        const profile = await AuthService.getProfile(user.id);
+        
+        if (!profile?.couple_id) {
+            window.location.href = '../pages/welcome.html';
+            return;
+        }
+        
+        const couple = await CoupleService.getCouple(profile.couple_id);
+        
+        const app = document.getElementById('app');
+        app.innerHTML = renderDashboard({ user, profile, couple });
+        initDashboard();
+    </script>
+</body>
+</html>

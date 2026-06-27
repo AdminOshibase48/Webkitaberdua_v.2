@@ -1,7 +1,8 @@
+// /js/services/auth.js
 import { supabase } from './assets/js/services/supabase.js';
 
-export class AuthService {
-    static async register(email, password, displayName) {
+export const AuthService = {
+    async register(email, password, displayName) {
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
@@ -27,9 +28,9 @@ export class AuthService {
         }
         
         return data;
-    }
+    },
 
-    static async login(email, password) {
+    async login(email, password) {
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password
@@ -37,9 +38,9 @@ export class AuthService {
         
         if (error) throw error;
         return data;
-    }
+    },
 
-    static async loginWithGoogle() {
+    async loginWithGoogle() {
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -49,41 +50,41 @@ export class AuthService {
         
         if (error) throw error;
         return data;
-    }
+    },
 
-    static async logout() {
+    async logout() {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
-    }
+    },
 
-    static async resetPassword(email) {
+    async resetPassword(email) {
         const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
             redirectTo: `${window.location.origin}/reset-password`
         });
         
         if (error) throw error;
         return data;
-    }
+    },
 
-    static async getCurrentUser() {
+    async getCurrentUser() {
         const { data: { user }, error } = await supabase.auth.getUser();
         if (error) throw error;
         return user;
-    }
+    },
 
-    static async getSession() {
+    async getSession() {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         return session;
-    }
+    },
 
-    static onAuthStateChange(callback) {
+    onAuthStateChange(callback) {
         return supabase.auth.onAuthStateChange((event, session) => {
             callback(event, session);
         });
-    }
+    },
 
-    static async getProfile(userId) {
+    async getProfile(userId) {
         const { data, error } = await supabase
             .from('profiles')
             .select('*')
@@ -92,9 +93,9 @@ export class AuthService {
         
         if (error) throw error;
         return data;
-    }
+    },
 
-    static async updateProfile(userId, updates) {
+    async updateProfile(userId, updates) {
         const { data, error } = await supabase
             .from('profiles')
             .update(updates)
@@ -105,4 +106,4 @@ export class AuthService {
         if (error) throw error;
         return data;
     }
-}
+};

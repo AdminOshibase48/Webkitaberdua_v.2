@@ -1,0 +1,187 @@
+/* Global Reset & Base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #fbf9f5;
+    color: #1b1c1a;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+}
+
+/* Material Icons */
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    display: inline-block;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.material-symbols-outlined.filled {
+    font-variation-settings: 'FILL' 1;
+}
+
+/* Glassmorphism */
+.glass-card {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 32px 0 rgba(135, 78, 88, 0.08);
+}
+
+.glass-card-dark {
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradients */
+.accent-gradient {
+    background: linear-gradient(135deg, #874e58 0%, #645495 50%, #316385 100%);
+}
+
+.primary-gradient {
+    background: linear-gradient(135deg, #ffb6c1 0%, #874e58 100%);
+}
+
+.love-gradient {
+    background: linear-gradient(135deg, #ffb6c1 0%, #874e58 100%);
+}
+
+.sky-gradient {
+    background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+}
+
+/* Animations */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-soft {
+    0%, 100% { opacity: 0.8; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.02); }
+}
+
+@keyframes heart-beat {
+    0% { transform: scale(1); }
+    14% { transform: scale(1.1); }
+    28% { transform: scale(1); }
+    42% { transform: scale(1.1); }
+    70% { transform: scale(1); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes slide-up {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes typing-dot {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+    30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Utility Classes */
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-pulse-soft { animation: pulse-soft 4s ease-in-out infinite; }
+.animate-heart { animation: heart-beat 2s infinite ease-in-out; }
+.animate-shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); background-size: 200% 100%; animation: shimmer 3s infinite; }
+.animate-slide-up { animation: slide-up 0.5s ease-out; }
+
+/* Typing Dots */
+.typing-dot {
+    width: 4px;
+    height: 4px;
+    background-color: #645495;
+    border-radius: 50%;
+    animation: typing-dot 1.4s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* XP Progress Bar */
+.xp-gradient-bar {
+    background: linear-gradient(90deg, #ffb6c1 0%, #c8b6ff 50%, #9cccf2 100%);
+    background-size: 200% 100%;
+    animation: moveGradient 4s linear infinite;
+}
+
+@keyframes moveGradient {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+/* Pulse Shadow */
+.pulse-shadow {
+    animation: pulseShadow 3s infinite ease-in-out;
+}
+
+@keyframes pulseShadow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(135, 78, 88, 0.2); }
+    50% { box-shadow: 0 0 20px 10px rgba(135, 78, 88, 0.1); }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #e4e2de;
+    border-radius: 10px;
+}
+
+/* Hide scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Transitions */
+.page-transition {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.page-enter {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.page-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Dark Mode Overrides */
+.dark .glass-card {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark body {
+    background-color: #1b1c1a;
+    color: #f2f0ed;
+}
+
+/* Safe Area for Mobile */
+.safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+}

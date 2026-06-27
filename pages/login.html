@@ -6,31 +6,198 @@
     <title>Login - OurStory</title>
     
     <meta name="theme-color" content="#874e58">
-    <link rel="manifest" href="../manifest.json">
+    <link rel="manifest" href="/manifest.json">
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     
     <link href="../assets/css/tailwind.css" rel="stylesheet">
     <link href="../assets/css/main.css" rel="stylesheet">
+    
+    <style>
+        .gradient-bg {
+            background: radial-gradient(circle at 0% 0%, #ffd9de 0%, transparent 40%),
+                        radial-gradient(circle at 100% 100%, #e8ddff 0%, transparent 40%);
+            background-color: #fbf9f5;
+        }
+        .primary-gradient {
+            background: linear-gradient(135deg, #874e58 0%, #645495 100%);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .ambient-shadow {
+            box-shadow: 0 30px 60px -12px rgba(135, 78, 88, 0.12), 0 18px 36px -18px rgba(100, 84, 149, 0.15);
+        }
+    </style>
 </head>
 <body>
-    <div id="app"></div>
+    <div id="app">
+        <div class="gradient-bg min-h-screen flex flex-col items-center justify-center px-4 md:px-10 relative">
+            <!-- Background Decorative -->
+            <div class="fixed top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary-fixed opacity-20 blur-[100px] rounded-full pointer-events-none"></div>
+            <div class="fixed bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-secondary-fixed opacity-20 blur-[100px] rounded-full pointer-events-none"></div>
+            
+            <main class="w-full max-w-[460px] relative z-10">
+                <!-- Logo -->
+                <div class="flex flex-col items-center mb-10">
+                    <div class="w-16 h-16 primary-gradient rounded-xl mb-4 flex items-center justify-center shadow-lg transform rotate-3">
+                        <span class="material-symbols-outlined text-white text-4xl filled">favorite</span>
+                    </div>
+                    <h1 class="font-headline-md text-headline-md text-primary tracking-tight" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 24px; font-weight: 600;">OurStory Together</h1>
+                </div>
+                
+                <!-- Login Form -->
+                <div class="glass-card ambient-shadow rounded-lg p-8 md:p-10 w-full">
+                    <header class="mb-8">
+                        <h2 class="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface mb-2" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 32px; font-weight: 700;">Welcome Back ❤️</h2>
+                        <p class="font-body-md text-on-surface-variant" style="font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 400;">Continue your shared journey together.</p>
+                    </header>
+                    
+                    <form id="login-form" class="space-y-6">
+                        <!-- Email -->
+                        <div class="space-y-2">
+                            <label class="font-label-md text-label-md text-on-surface-variant ml-2" style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;">Email address</label>
+                            <div class="relative group">
+                                <span class="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">mail</span>
+                                <input class="w-full h-14 pl-14 pr-6 bg-white/50 border border-white/60 rounded-lg font-body-md text-on-surface focus:ring-2 focus:ring-primary-container focus:border-primary outline-none transition-all placeholder:text-outline-variant" id="email" placeholder="us@ourstory.com" type="email" required style="font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 400;">
+                            </div>
+                        </div>
+                        
+                        <!-- Password -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center px-2">
+                                <label class="font-label-md text-label-md text-on-surface-variant" style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;">Password</label>
+                                <a class="font-label-sm text-label-sm text-primary hover:underline cursor-pointer" id="forgot-password" style="font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;">Forgot?</a>
+                            </div>
+                            <div class="relative group">
+                                <span class="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">lock</span>
+                                <input class="w-full h-14 pl-14 pr-14 bg-white/50 border border-white/60 rounded-lg font-body-md text-on-surface focus:ring-2 focus:ring-primary-container focus:border-primary outline-none transition-all placeholder:text-outline-variant" id="password" placeholder="••••••••" type="password" required style="font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 400;">
+                                <button class="absolute right-5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors toggle-password" type="button">
+                                    <span class="material-symbols-outlined">visibility</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Login Button -->
+                        <button class="w-full h-14 primary-gradient text-white font-headline-sm text-headline-sm rounded-full shadow-lg hover:scale-[1.02] active:scale-95 transition-all duration-300 mt-4" type="submit" id="login-btn" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 20px; font-weight: 600;">
+                            Login
+                        </button>
+                        
+                        <!-- Divider -->
+                        <div class="flex items-center gap-4 py-2">
+                            <div class="h-[1px] flex-1 bg-outline-variant/30"></div>
+                            <span class="font-label-sm text-label-sm text-on-surface-variant/60 uppercase tracking-widest" style="font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;">or</span>
+                            <div class="h-[1px] flex-1 bg-outline-variant/30"></div>
+                        </div>
+                        
+                        <!-- Google Login -->
+                        <button class="w-full h-14 bg-white border border-outline-variant/50 flex items-center justify-center gap-3 rounded-full hover:bg-surface-container-low transition-colors active:scale-95 duration-300 google-login-btn" type="button">
+                            <svg class="w-5 h-5" viewBox="0 0 48 48">
+                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                                <path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 0 1 9.5 24c0-1.59.28-3.14.76-4.59l-7.98-6.19A23.99 23.99 0 0 0 0 24c0 3.77.87 7.35 2.56 10.56l7.97-6.17z"/>
+                                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                            </svg>
+                            <span class="font-label-md text-label-md text-on-surface" style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;">Continue with Google</span>
+                        </button>
+                    </form>
+                    
+                    <footer class="mt-8 text-center">
+                        <p class="font-body-md text-on-surface-variant" style="font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 400;">
+                            New here? 
+                            <a class="text-secondary font-semibold hover:underline cursor-pointer" id="go-to-register" style="font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600;">Start your story</a>
+                        </p>
+                    </footer>
+                </div>
+            </main>
+        </div>
+    </div>
     
-    <script type="module">
-        import { renderLogin, initLogin } from '../assets/js/pages/login.js';
-        import { AuthService } from '../assets/js/services/auth.js';
+    <script>
+        // Toggle password visibility
+        document.querySelector('.toggle-password')?.addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.querySelector('.material-symbols-outlined').textContent = type === 'password' ? 'visibility' : 'visibility_off';
+        });
         
-        // Check if already logged in
-        const session = await AuthService.getSession();
-        if (session) {
-            window.location.href = '../dashboard.html';
-            return;
-        }
+        // Login form
+        document.getElementById('login-form')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('login-btn');
+            
+            if (!email || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Logging in...';
+            btn.disabled = true;
+            
+            try {
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/+esm');
+                const supabase = createClient(
+                    'https://cyrptzbwxohzhqkjquen.supabase.co',
+                    'sb_publishable_-6OEboAj0o1pZYG4si-o0Q_3xGfV5xr'
+                );
+                
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (error) throw error;
+                
+                // Check if user has couple
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('couple_id')
+                    .eq('id', data.user.id)
+                    .single();
+                
+                if (profile?.couple_id) {
+                    window.location.href = '../pages/dashboard.html';
+                } else {
+                    window.location.href = '../pages/welcome.html';
+                }
+            } catch (error) {
+                alert(error.message || 'Login failed. Please try again.');
+                btn.innerHTML = 'Login';
+                btn.disabled = false;
+            }
+        });
         
-        const app = document.getElementById('app');
-        app.innerHTML = renderLogin();
-        initLogin();
+        // Google login
+        document.querySelector('.google-login-btn')?.addEventListener('click', async function() {
+            try {
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/+esm');
+                const supabase = createClient(
+                    'https://cyrptzbwxohzhqkjquen.supabase.co',
+                    'sb_publishable_-6OEboAj0o1pZYG4si-o0Q_3xGfV5xr'
+                );
+                
+                await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: window.location.origin
+                    }
+                });
+            } catch (error) {
+                alert(error.message || 'Google login failed.');
+            }
+        });
+        
+        // Navigate to register
+        document.getElementById('go-to-register')?.addEventListener('click', () => {
+            window.location.href = '../pages/register.html';
+        });
     </script>
 </body>
 </html>

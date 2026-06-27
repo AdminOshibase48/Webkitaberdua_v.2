@@ -1,2 +1,13 @@
 # /_redirects
 /*    /index.html    200
+/splash    ../pages/splash.html    200
+/login    ../pages/login.html    200
+/register    ../pages/register.html    200
+/welcome    ../pages/welcome.html    200
+/dashboard    ../pages/dashboard.html    200
+/chat    ../pages/chat.html    200
+/gallery    ../pages/gallery.html    200
+/finance    ../pages/finance.html    200
+/profile    ../pages/profile.html    200
+/notifications    ../pages/notifications.html    200
+/missions    ../pages/missions.html    200

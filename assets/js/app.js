@@ -1,6 +1,6 @@
 // /js/app.js
 // Import services - gunakan relative path yang benar
-import { supabase, getCurrentUser, getSession } from './services/supabase.js';
+import { supabase, getCurrentUser, getSession } from '../assets/js/services/supabase.js';
 import { AuthService } from '../assets/js/services/auth.js';
 import { CoupleService } from '../assets/js/services/couple.js';
 import { NotificationsService } from '../assets/js/services/notifications.js';

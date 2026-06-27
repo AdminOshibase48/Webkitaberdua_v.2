@@ -4,6 +4,9 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://cyrptzbwxohzhqkjquen.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_-6OEboAj0o1pZYG4si-o0Q_3xGfV5xr';
 
+// Import Supabase dari CDN
+const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/+esm');
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Database Types

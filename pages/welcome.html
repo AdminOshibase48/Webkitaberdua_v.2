@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Welcome - OurStory</title>
+    
     <meta name="theme-color" content="#874e58">
     <link rel="manifest" href="/manifest.json">
     
@@ -17,18 +18,22 @@
         .accent-gradient {
             background: linear-gradient(135deg, #874e58 0%, #645495 50%, #316385 100%);
         }
-        .floating {
-            animation: floating 6s ease-in-out infinite;
-        }
-        @keyframes floating {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
-        }
         .glass-card {
             background: rgba(255, 255, 255, 0.4);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
             border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        @keyframes floating {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        .floating { animation: floating 6s ease-in-out infinite; }
+        @keyframes rise {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            20% { opacity: 0.6; }
+            80% { opacity: 0.6; }
+            100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
         }
         .heart-particle {
             position: absolute;
@@ -36,157 +41,153 @@
             opacity: 0;
             animation: rise 8s linear infinite;
         }
-        @keyframes rise {
-            0% { transform: translateY(100vh) scale(0); opacity: 0; }
-            20% { opacity: 0.6; }
-            80% { opacity: 0.6; }
-            100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+        .welcome-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #fbf9f5;
+        }
+        .welcome-main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 20px 40px;
+        }
+        .welcome-footer {
+            padding: 20px 20px 30px;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+        @media (min-width: 768px) {
+            .welcome-main { padding: 100px 40px 60px; }
+            .welcome-footer { padding: 24px 40px 40px; }
         }
     </style>
 </head>
 <body>
-    <div id="app">
-        <div class="min-h-screen bg-surface flex flex-col relative overflow-hidden">
-            <!-- Background Particles -->
-            <div class="fixed inset-0 z-0 pointer-events-none" id="particle-container"></div>
-            
-            <!-- Main Content -->
-            <main class="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8 md:py-12">
-                <!-- Logo -->
-                <div class="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2">
-                    <div class="w-10 h-10 rounded-full accent-gradient flex items-center justify-center shadow-lg">
-                        <span class="material-symbols-outlined text-white filled">favorite</span>
+    <div class="welcome-container">
+        <!-- Header Logo -->
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 md:top-8 flex items-center gap-2 z-20">
+            <div class="w-10 h-10 rounded-full accent-gradient flex items-center justify-center shadow-lg">
+                <span class="material-symbols-outlined text-white filled">favorite</span>
+            </div>
+            <span class="font-headline-md text-headline-md text-primary tracking-tight">OurStory</span>
+        </div>
+        
+        <!-- Particles Background -->
+        <div class="fixed inset-0 z-0 overflow-hidden pointer-events-none" id="particle-container"></div>
+        
+        <!-- Main Content -->
+        <main class="welcome-main relative z-10">
+            <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <!-- Illustration -->
+                <div class="flex justify-center order-2 lg:order-1">
+                    <div class="relative w-full max-w-md">
+                        <div class="absolute inset-0 bg-primary-container/20 blur-[100px] rounded-full"></div>
+                        <div class="relative floating">
+                            <div class="aspect-square rounded-2xl overflow-hidden shadow-[0_32px_64px_rgba(135,78,88,0.12)] border-[8px] border-white">
+                                <img class="w-full h-full object-cover" alt="Couple illustration" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqqh8ay1b5zbNQ4x0RZRkfl1qXIyyBGrtqxwZycGZofQIjJR7hUYwOYgSp-zqjtwOCmKihn9OWp-DQOw0revU2LpIhzQTLoQCO3t05hKzD-0MlQcZ3emvnWbzIQRfyUn7t9XmB58KAkYHhckoyD04R_AGq-mJ_gryicqrKIcmmMzk6yiaND89drrKWzsBYMMvHZ47oHgWoffz-4hJSvCnSOeHIokcLsW9TjvyfRvv0EXUnRnJuIxoIvQEIUNylVsET_BBXA23ohF4" />
+                            </div>
+                            <!-- Floating Cards -->
+                            <div class="absolute -top-4 -right-4 glass-card p-3 rounded-xl shadow-xl animate-bounce" style="animation-duration: 3s;">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center">
+                                        <span class="material-symbols-outlined text-on-secondary-container text-sm filled">auto_awesome</span>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] font-label-sm text-on-surface-variant">New Memory</p>
+                                        <p class="text-xs font-bold text-secondary">Paris Trip '24</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="absolute -bottom-3 -left-4 glass-card p-3 rounded-xl shadow-xl">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex -space-x-2">
+                                        <div class="w-6 h-6 rounded-full border-2 border-white bg-primary-fixed"></div>
+                                        <div class="w-6 h-6 rounded-full border-2 border-white bg-secondary-fixed"></div>
+                                    </div>
+                                    <p class="text-[10px] font-label-sm text-on-surface-variant">2 users active</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <span class="font-headline-md text-primary tracking-tight">OurStory</span>
                 </div>
                 
-                <!-- Hero Section -->
-                <div class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center mt-12 lg:mt-0">
-                    <!-- Left: Illustration -->
-                    <div class="flex justify-center order-2 lg:order-1">
-                        <div class="relative w-full max-w-sm lg:max-w-md">
-                            <div class="absolute inset-0 bg-primary-container/20 blur-[100px] rounded-full"></div>
-                            <div class="relative floating">
-                                <div class="aspect-square rounded-2xl overflow-hidden shadow-[0_32px_64px_rgba(135,78,88,0.12)] border-[8px] border-white">
-                                    <img class="w-full h-full object-cover" alt="Couple illustration" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqqh8ay1b5zbNQ4x0RZRkfl1qXIyyBGrtqxwZycGZofQIjJR7hUYwOYgSp-zqjtwOCmKihn9OWp-DQOw0revU2LpIhzQTLoQCO3t05hKzD-0MlQcZ3emvnWbzIQRfyUn7t9XmB58KAkYHhckoyD04R_AGq-mJ_gryicqrKIcmmMzk6yiaND89drrKWzsBYMMvHZ47oHgWoffz-4hJSvCnSOeHIokcLsW9TjvyfRvv0EXUnRnJuIxoIvQEIUNylVsET_BBXA23ohF4" />
-                                </div>
-                                <!-- Floating Cards -->
-                                <div class="absolute -top-4 -right-4 glass-card p-3 rounded-xl shadow-xl animate-bounce" style="animation-duration: 3s;">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center">
-                                            <span class="material-symbols-outlined text-on-secondary-container text-sm filled">auto_awesome</span>
-                                        </div>
-                                        <div>
-                                            <p class="text-[10px] font-label-sm text-on-surface-variant">New Memory</p>
-                                            <p class="text-xs font-bold text-secondary">Paris Trip '24</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="absolute -bottom-4 -left-4 glass-card p-3 rounded-xl shadow-xl">
-                                    <div class="flex items-center gap-2">
-                                        <div class="flex -space-x-2">
-                                            <div class="w-6 h-6 rounded-full border-2 border-white bg-primary-fixed"></div>
-                                            <div class="w-6 h-6 rounded-full border-2 border-white bg-secondary-fixed"></div>
-                                        </div>
-                                        <p class="text-[10px] font-label-sm text-on-surface-variant">2 users active</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <!-- Content -->
+                <div class="text-center lg:text-left order-1 lg:order-2 space-y-6">
+                    <h1 class="font-display-lg-mobile lg:font-display-lg text-display-lg-mobile lg:text-display-lg text-on-surface leading-tight">
+                        A Sanctuary for <span class="text-primary italic">Us.</span>
+                    </h1>
+                    <p class="font-body-lg text-body-lg text-on-surface-variant max-w-sm mx-auto lg:mx-0">
+                        The intimate space to store memories, chat privately, and build your future together.
+                    </p>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4 max-w-sm mx-auto lg:mx-0">
+                        <button class="accent-gradient flex-1 py-4 rounded-full font-headline-sm text-white shadow-[0_20px_40px_rgba(252,179,190,0.3)] hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-2 group" id="welcome-register">
+                            Register
+                            <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                        </button>
+                        <button class="flex-1 py-4 rounded-full border-2 border-secondary/20 font-headline-sm text-secondary glass-card hover:bg-white/60 active:scale-95 transition-all duration-300" id="welcome-login">
+                            Login
+                        </button>
                     </div>
                     
-                    <!-- Right: Content -->
-                    <div class="order-1 lg:order-2 text-center lg:text-left space-y-6 lg:space-y-8">
-                        <div class="space-y-3">
-                            <h1 class="font-display-lg-mobile lg:font-display-lg text-display-lg-mobile lg:text-display-lg text-on-surface leading-tight">
-                                A Sanctuary for <span class="text-primary italic">Us.</span>
-                            </h1>
-                            <p class="font-body-lg text-on-surface-variant max-w-sm mx-auto lg:mx-0">
-                                The intimate space to store memories, chat privately, and build your future together.
-                            </p>
+                    <div class="flex items-center justify-center lg:justify-start gap-3 pt-2">
+                        <div class="flex -space-x-2">
+                            <div class="w-8 h-8 rounded-full border-2 border-white bg-surface-container-high"></div>
+                            <div class="w-8 h-8 rounded-full border-2 border-white bg-surface-container-highest"></div>
+                            <div class="w-8 h-8 rounded-full border-2 border-white bg-surface-variant"></div>
                         </div>
-                        
-                        <!-- Action Buttons -->
-                        <div class="flex flex-col gap-3 max-w-sm mx-auto lg:mx-0">
-                            <button class="accent-gradient w-full py-4 rounded-full font-headline-sm text-white shadow-[0_20px_40px_rgba(252,179,190,0.3)] hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-2 group" id="welcome-register">
-                                Register →
-                                <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
-                            </button>
-                            <button class="w-full py-4 rounded-full border-2 border-secondary/20 font-headline-sm text-secondary glass-card hover:bg-white/60 active:scale-95 transition-all duration-300" id="welcome-login">
-                                Login
-                            </button>
-                        </div>
-                        
-                        <!-- Social Proof -->
-                        <div class="flex items-center justify-center lg:justify-start gap-3 pt-2">
-                            <div class="flex -space-x-2">
-                                <div class="w-8 h-8 rounded-full border-2 border-white bg-surface-container-high"></div>
-                                <div class="w-8 h-8 rounded-full border-2 border-white bg-surface-container-highest"></div>
-                                <div class="w-8 h-8 rounded-full border-2 border-white bg-surface-variant"></div>
-                            </div>
-                            <span class="text-[10px] font-label-sm text-on-surface-variant/70 uppercase tracking-widest">Join 50k+ Couples</span>
-                        </div>
+                        <span class="text-[10px] font-label-sm text-on-surface-variant/70 uppercase tracking-widest">Join 50k+ Couples</span>
                     </div>
                 </div>
-            </main>
-            
-            <!-- Footer - Fixed di bawah -->
-            <footer class="relative z-10 w-full px-4 py-4 border-t border-surface-variant/20">
-                <div class="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-on-surface-variant/50">
-                    <span>© 2026 OurStory Inc.</span>
-                    <div class="flex gap-4">
-                        <a class="hover:text-primary transition-colors" href="#">Privacy</a>
-                        <a class="hover:text-primary transition-colors" href="#">Terms</a>
-                    </div>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="welcome-footer relative z-10">
+            <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-on-surface-variant/50">
+                <span>© 2026 OurStory Inc.</span>
+                <div class="flex gap-6">
+                    <a class="hover:text-primary transition-colors" href="#">Privacy</a>
+                    <a class="hover:text-primary transition-colors" href="#">Terms</a>
                 </div>
-            </footer>
-        </div>
+            </div>
+        </footer>
     </div>
     
     <script>
-        // Konfigurasi Supabase
-        const SUPABASE_URL = 'https://cyrptzbwxohzhqkjquen.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_-6OEboAj0o1pZYG4si-o0Q_3xGfV5xr';
-        
-        // Register button
+        // Navigation
         document.getElementById('welcome-register')?.addEventListener('click', () => {
             window.location.href = '../pages/register.html';
         });
-        
-        // Login button
         document.getElementById('welcome-login')?.addEventListener('click', () => {
             window.location.href = '../pages/login.html';
         });
         
-        // Create heart particles
-        (function createParticles() {
-            const container = document.getElementById('particle-container');
-            if (!container) return;
-            
+        // Heart particles
+        const container = document.getElementById('particle-container');
+        if (container) {
             const colors = ['#fcb3be', '#cebdff', '#cae6ff'];
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < 20; i++) {
                 const particle = document.createElement('div');
                 const isHeart = Math.random() > 0.4;
                 particle.className = 'heart-particle material-symbols-outlined';
                 particle.textContent = isHeart ? 'favorite' : 'sparkle';
-                
-                const size = Math.random() * 16 + 8;
-                const left = Math.random() * 100;
-                const delay = Math.random() * 10;
-                const duration = Math.random() * 5 + 7;
-                const color = colors[Math.floor(Math.random() * colors.length)];
-                
+                const size = Math.random() * 18 + 8;
                 particle.style.cssText = `
+                    position: absolute;
+                    pointer-events: none;
+                    opacity: 0;
                     font-size: ${size}px;
-                    left: ${left}%;
-                    animation-delay: ${delay}s;
-                    animation-duration: ${duration}s;
-                    color: ${color};
+                    left: ${Math.random() * 100}%;
+                    animation: rise ${Math.random() * 5 + 6}s linear ${Math.random() * 10}s infinite;
+                    color: ${colors[Math.floor(Math.random() * colors.length)]};
                     font-variation-settings: 'FILL' ${isHeart ? 1 : 0};
                 `;
                 container.appendChild(particle);
             }
-        })();
+        }
     </script>
 </body>
 </html>

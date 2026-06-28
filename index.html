@@ -4,14 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>OurStory Together</title>
+    
     <meta name="theme-color" content="#874e58">
     <link rel="manifest" href="/manifest.json">
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     
-    <link href="../assets/css/tailwind.css" rel="stylesheet">
-    <link href="../assets/css/main.css" rel="stylesheet">
+    <link href="assets/css/tailwind.css" rel="stylesheet">
+    <link href="assets/css/main.css" rel="stylesheet">
 </head>
 <body>
     <div id="app" class="min-h-screen flex items-center justify-center bg-surface">
@@ -19,23 +20,19 @@
             <div class="w-16 h-16 rounded-full bg-primary/20 mx-auto mb-4 flex items-center justify-center animate-pulse">
                 <span class="material-symbols-outlined text-primary text-4xl filled">favorite</span>
             </div>
-            <p class="text-on-surface-variant font-body-md">Loading OurStory...</p>
+            <p class="text-on-surface-variant">Loading OurStory...</p>
         </div>
     </div>
     
     <script>
-        // Konfigurasi Supabase
-        const SUPABASE_URL = 'https://cyrptzbwxohzhqkjquen.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_-6OEboAj0o1pZYG4si-o0Q_3xGfV5xr';
-        
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js').catch(() => {});
-        }
-        
         (async function() {
             try {
                 const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/+esm');
-                const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                
+                const supabase = createClient(
+                    'https://cyrptzbwxohzhqkjquen.supabase.co',
+                    'sb_publishable_-6OEboAj0o1pZYG4si-o0Q_3xGfV5xr'
+                );
                 
                 const { data: { session } } = await supabase.auth.getSession();
                 
@@ -47,16 +44,16 @@
                         .single();
                     
                     if (profile?.couple_id) {
-                        window.location.href = '../pages/dashboard.html';
+                        window.location.href = '/pages/dashboard.html';
                     } else {
-                        window.location.href = '../pages/welcome.html';
+                        window.location.href = '/pages/welcome.html';
                     }
                 } else {
-                    window.location.href = '../pages/welcome.html';
+                    window.location.href = '/pages/splash.html';
                 }
             } catch (error) {
                 console.error('Error:', error);
-                window.location.href = '../pages/welcome.html';
+                window.location.href = '/pages/splash.html';
             }
         })();
     </script>
